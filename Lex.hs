@@ -26,7 +26,7 @@ lexer = P.makeTokenParser aelDef
 
 whiteSpace= P.whiteSpace lexer
 integer   = P.integer lexer
-float	  = P.float lexer
+double	  = P.float lexer
 stringLit = P.stringLiteral lexer
 parens    = P.parens lexer
 braces    = P.braces lexer
@@ -34,10 +34,11 @@ semi      = P.semi lexer
 identifier= P.identifier lexer
 reserved  = P.reserved lexer
 reservedOp= P.reservedOp lexer
+comma     = P.comma lexer
 
 data Expr = 
     CInt Int
-  | CFloat Double
+  | CDouble Double
   | CString String
   | Var String
   | Add Expr Expr
@@ -52,6 +53,30 @@ data Expr =
   | Neq Expr Expr
   deriving Show
 
+getType = do
+		reserved "int" 
+		return Int 
+	<|> do
+		reserved "double"
+		return Double
+	<|> do
+		reserved "string"
+		return String
+
+getParams = do
+		t <- getType
+		i <- identifier
+		comma
+		p <- getParams
+		return $ (Param t i):p
+	<|> do
+		t <- getType
+		i <- identifier
+		return $ [(Param t i)]
+	<|> do
+		return []
+		 		
+
 expr = buildExpressionParser operators term where
   operators = [
       [ op "*" Mult, op "/" Div ],
@@ -65,8 +90,8 @@ term = do
     i <- integer
     return $ CInt $ fromInteger i
   <|> do
-    f <- float
-    return $ CFloat f
+    f <- double
+    return $ CDouble f
   <|> do
     s <- stringLit
     return $ CString s
@@ -80,26 +105,75 @@ term = do
 
 data Cmd =
 	  Empty
-	| IfStmt Expr [Cmd] [Cmd]
-	| WhileStmt Expr [Cmd]
---	| ForStmt
-	| Func String Type [Param] [Cmd]	-- definicia funkcie
+	| IfStmt Expr Cmd Cmd
+	| WhileStmt Expr Cmd
+	| Func Type String [Param] Cmd	-- definicia funkcie
+	| FuncDecl Type String [Param]
 	| FuncCall String [Arg]				-- volanie funkcie
 	| AssignStmt String Expr					-- priradenie premennej
 	| VarDefStmt Type String					-- deklaracia premennej v bloku
 	| ReturnStmt Expr
 	| Print Expr 
-	| ScanStr String | ScanVar String
+	| Scan String
+	| Seq [Cmd]
 
 data Type = 
 	  String
 	| Int
-	| Float
+	| Double
 
 data Param = Param Type String
 
 data Arg = Arg Expr
-	
+
+command = 
+	do
+		semi
+		return Empty
+	<|>	do
+		t <- getType 
+		i <- identifier
+		semi
+		return $ VarDefStmt t i
+	<|> do
+		t <- getType
+		i <- identifier
+		params <- parens $ getParams 
+		semi
+		return $ FuncDecl t i params		
+	<|> do
+    	reserved "print"
+    	e <- expr
+    	semi
+    	return $ Print e
+  	<|> do
+    	reserved "scan"
+    	i <- identifier
+    	semi
+    	return $ Scan i
+	<|> do
+		i <- identifier
+		reservedOp "="
+		e <- expr
+   		semi
+		return $ AssignStmt i e
+  	<|> do
+		reserved "if"
+		b <- expr    	
+		c1 <- command
+		reserved "else"
+		c2 <- command
+		return $ IfStmt b c1 c2
+  	<|> do
+		reserved "while"
+		b <- expr    
+		c <- command
+		return $ WhileStmt b c
+  	<|> do
+		seq <- braces $ many command
+		return $ Seq seq
+  	<?> "command"
+
 
 
 
