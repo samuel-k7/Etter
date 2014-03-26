@@ -1,4 +1,4 @@
-module Lex( lexer ) where
+module Lex( lexer, whiteSpace ) where
 
 import System.Environment( getArgs )
 import System.IO
@@ -75,5 +75,34 @@ term = do
     return $ Var v
   <|> parens expr
   <?> "term"
+
+-- 
+
+data Cmd =
+	  Empty
+	| IfStmt Expr [Cmd] [Cmd]
+	| WhileStmt Expr [Cmd]
+--	| ForStmt
+	| Func String Type [Param] [Cmd]	-- definicia funkcie
+	| FuncCall String [Arg]				-- volanie funkcie
+	| AssignStmt String Expr					-- priradenie premennej
+	| VarDefStmt Type String					-- deklaracia premennej v bloku
+	| ReturnStmt Expr
+	| Print Expr 
+	| ScanStr String | ScanVar String
+
+data Type = 
+	  String
+	| Int
+	| Float
+
+data Param = Param Type String
+
+data Arg = Arg Expr
+	
+
+
+
+
 
 --end demo.hs
