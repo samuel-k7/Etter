@@ -75,6 +75,17 @@ getParams = do
 		return $ [(Param t i)]
 	<|> do
 		return []
+
+getFuncArgs = do		
+		e <- expr
+		comma
+		a <- getFuncArgs
+		return $ (Arg e):a
+	<|> do
+		e <- expr
+		return $ [(Arg e)]
+	<|> do
+		return []
 		 		
 
 expr = buildExpressionParser operators term where
@@ -140,7 +151,22 @@ command =
 		i <- identifier
 		params <- parens $ getParams 
 		semi
-		return $ FuncDecl t i params		
+		return $ FuncDecl t i params	
+	<|> do
+		t <- getType
+		i <- identifier
+		params <- parens $ getParams 
+		c <- command
+		return $ Func t i params c
+	<|> do
+		i <- identifier
+		a <- getFuncArgs
+		semi
+		return $ FuncCall i a
+	<|> do
+		reserved "return"
+		e <- expr
+		return $ ReturnStmt e		
 	<|> do
     	reserved "print"
     	e <- expr
