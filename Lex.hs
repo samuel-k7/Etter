@@ -45,6 +45,7 @@ data Expr =
   | CDouble Double
   | CString String
   | Var String
+  | Fun String [Arg]
   | Add Expr Expr
   | Sub Expr Expr
   | Mult Expr Expr
@@ -115,6 +116,10 @@ term = do
     s <- stringLit
     return $ CString s
   <|> do
+    f <- identifier
+    a <- parens $ getFuncArgs
+    return $ Fun f a
+  <|> do
     v <- identifier
     return $ Var v
   <|> parens expr
@@ -140,12 +145,15 @@ data Type =
       String
     | Int
     | Double
+    deriving Show
 
 -- Struktura parametrov funkcie
 data Param = Param Type String
+    deriving Show
 
 -- Struktura argumentov predavanych do funkcie
 data Arg = Arg Expr
+    deriving Show
 
 -- Syntakticka analyza
 command =
