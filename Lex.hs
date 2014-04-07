@@ -8,25 +8,28 @@ import qualified Text.ParserCombinators.Parsec.Token as P
 import Text.ParserCombinators.Parsec.Expr
 import Text.ParserCombinators.Parsec.Language
 
+-- Lexikalna analyza
 aelDef = emptyDef
-	{ commentStart   = "/*"
-	, commentEnd     = "*/"
-	, commentLine    = "//"
-	, nestedComments = False
-	, identStart     = letter <|> char '_'
-	, identLetter    = alphaNum <|> char '_'
-	, opStart        = oneOf "=+*-!><"
-	, opLetter       = opStart aelDef
-	, reservedOpNames= [ "=", "+", "*", "-", "/", "==", "!=", "<", "<=", ">=", ">" ]
-	, reservedNames  = [ "double", "else", "if", "int", "print", "scan", "string", "while" ]
-	, caseSensitive  = True
-	}
+    { commentStart   = "/*"
+    , commentEnd     = "*/"
+    , commentLine    = "//"
+    , nestedComments = False
+    , identStart     = letter <|> char '_'
+    , identLetter    = alphaNum <|> char '_'
+    , opStart        = oneOf "=+*-!><"
+    , opLetter       = opStart aelDef
+    , reservedOpNames= [ "=", "+", "*", "-", "/", "==", "!=", "<", "<=", ">=", ">" ]
+    , reservedNames  = [ "double", "else", "if", "int", "print", "scan", "string", "while" ]
+    , caseSensitive  = True
+    }
 
+-- Lexikalny analyzator
 lexer = P.makeTokenParser aelDef
 
+-- Pomocne funkcie lexikalnej analyzy
 whiteSpace= P.whiteSpace lexer
 integer   = P.integer lexer
-double	  = P.float lexer
+double    = P.float lexer
 stringLit = P.stringLiteral lexer
 parens    = P.parens lexer
 braces    = P.braces lexer
@@ -36,7 +39,8 @@ reserved  = P.reserved lexer
 reservedOp= P.reservedOp lexer
 comma     = P.comma lexer
 
-data Expr = 
+-- Definicia vyrazov
+data Expr =
     CInt Int
   | CDouble Double
   | CString String
@@ -53,50 +57,54 @@ data Expr =
   | Neq Expr Expr
   deriving Show
 
+-- Ziskanie typu premennej, funkcie
 getType = do
-		reserved "int" 
-		return Int 
-	<|> do
-		reserved "double"
-		return Double
-	<|> do
-		reserved "string"
-		return String
+        reserved "int"
+        return Int
+    <|> do
+        reserved "double"
+        return Double
+    <|> do
+        reserved "string"
+        return String
 
+-- Ziskanie paramatrov funkcie pri jej deklaracii, definicii
 getParams = do
-		t <- getType
-		i <- identifier
-		comma
-		p <- getParams
-		return $ (Param t i):p
-	<|> do
-		t <- getType
-		i <- identifier
-		return $ [(Param t i)]
-	<|> do
-		return []
+        t <- getType
+        i <- identifier
+        comma
+        p <- getParams
+        return $ (Param t i):p
+    <|> do
+        t <- getType
+        i <- identifier
+        return $ [(Param t i)]
+    <|> do
+        return []
 
-getFuncArgs = do		
-		e <- expr
-		comma
-		a <- getFuncArgs
-		return $ (Arg e):a
-	<|> do
-		e <- expr
-		return $ [(Arg e)]
-	<|> do
-		return []
-		 		
+-- Ziskanie argumentov funkcie pri jej volani
+getFuncArgs = do
+        e <- expr
+        comma
+        a <- getFuncArgs
+        return $ (Arg e):a
+    <|> do
+        e <- expr
+        return $ [(Arg e)]
+    <|> do
+        return []
 
+-- Precedencna analyza vyrazov
 expr = buildExpressionParser operators term where
   operators = [
       [ op "*" Mult, op "/" Div ],
       [ op "+" Add, op "-" Sub ],
-	  [ op "<" Lt, op "<=" LtEq, op ">" Gt, op ">=" GtEq, op "==" Eq, op "!=" Neq]
+      [ op "<" Lt, op "<=" LtEq, op ">" Gt, op ">=" GtEq, op "==" Eq, op "!=" Neq]
     ]
   op name fun =
     Infix ( do { reservedOp name; return fun } ) AssocLeft
 
+-- Spracovanie vyrazu pomocou definovanych datovych typov
 term = do
     i <- integer
     return $ CInt $ fromInteger i
@@ -112,97 +120,106 @@ term = do
   <|> parens expr
   <?> "term"
 
--- 
-
+-- Definicia struktury prikazov jazyka
 data Cmd =
-	  Empty
-	| IfStmt Expr Cmd Cmd
-	| WhileStmt Expr Cmd
-	| Func Type String [Param] Cmd	-- definicia funkcie
-	| FuncDecl Type String [Param]
-	| FuncCall String [Arg]				-- volanie funkcie
-	| AssignStmt String Expr					-- priradenie premennej
-	| VarDefStmt Type String					-- deklaracia premennej v bloku
-	| ReturnStmt Expr
-	| Print Expr 
-	| Scan String
-	| Seq [Cmd]
+      Empty                             -- prazdny prikaz
+    | IfStmt Expr Cmd Cmd               -- if
+    | WhileStmt Expr Cmd                -- while
+    | Func Type String [Param] Cmd      -- definicia funkcie
+    | FuncDecl Type String [Param]      -- deklaracia funkcie (bez tela)
+    | FuncCall String [Arg]             -- volanie funkcie
+    | AssignStmt String Expr            -- priradenie premennej
+    | VarDefStmt Type String            -- deklaracia premennej v bloku
+    | ReturnStmt Expr                   -- navrat z funkcie
+    | Print Expr                        -- vstavana funkcia Print
+    | Scan String                       -- vstavana funkcia Scan
+    | Seq [Cmd]                         -- zlozeny prikaz
 
-data Type = 
-	  String
-	| Int
-	| Double
+-- Datove typy v jazyku
+data Type =
+      String
+    | Int
+    | Double
 
+-- Struktura parametrov funkcie
 data Param = Param Type String
 
+-- Struktura argumentov predavanych do funkcie
 data Arg = Arg Expr
 
-command = 
-	do
-		semi
-		return Empty
-	<|>	do
-		t <- getType 
-		i <- identifier
-		semi
-		return $ VarDefStmt t i
-	<|> do
-		t <- getType
-		i <- identifier
-		params <- parens $ getParams 
-		semi
-		return $ FuncDecl t i params	
-	<|> do
-		t <- getType
-		i <- identifier
-		params <- parens $ getParams 
-		c <- command
-		return $ Func t i params c
-	<|> do
-		i <- identifier
-		a <- getFuncArgs
-		semi
-		return $ FuncCall i a
-	<|> do
-		reserved "return"
-		e <- expr
-		return $ ReturnStmt e		
-	<|> do
-    	reserved "print"
-    	e <- expr
-    	semi
-    	return $ Print e
-  	<|> do
-    	reserved "scan"
-    	i <- identifier
-    	semi
-    	return $ Scan i
-	<|> do
-		i <- identifier
-		reservedOp "="
-		e <- expr
-   		semi
-		return $ AssignStmt i e
-  	<|> do
-		reserved "if"
-		b <- expr    	
-		c1 <- command
-		reserved "else"
-		c2 <- command
-		return $ IfStmt b c1 c2
-  	<|> do
-		reserved "while"
-		b <- expr    
-		c <- command
-		return $ WhileStmt b c
-  	<|> do
-		seq <- braces $ many command
-		return $ Seq seq
-  	<?> "command"
+-- Syntakticka analyza
+command =
+    do
+        semi
+        return Empty
+    -- (3.2)
+    <|> do                              -- typ id ;
+        t <- getType
+        i <- identifier
+        semi
+        return $ VarDefStmt t i
+    -- (3.3)
+    <|> do                              -- return_type id ( params_list ) ;
+        t <- getType
+        i <- identifier
+        params <- parens $ getParams
+        semi
+        return $ FuncDecl t i params
+    -- (3.3)
+    <|> do                              -- return_type id ( params_list ) { command_list }
+        t <- getType
+        i <- identifier
+        params <- parens $ getParams
+        c <- command
+        return $ Func t i params c
+    -- (5)
+    <|> do                              -- id ( args_list ) ;
+        i <- identifier
+        a <- parens $ getFuncArgs
+        semi
+        return $ FuncCall i a
+    -- (4)
+    <|> do                              -- return expr ;
+        reserved "return"
+        e <- expr
+        semi
+        return $ ReturnStmt e
+    <|> do                              -- print ( expr ) ;
+        reserved "print"
+        e <- parens $ expr
+        semi
+        return $ Print e
+    <|> do                              -- scan ( expr ) ;
+        reserved "scan"
+        i <- identifier
+        semi
+        return $ Scan i
+    <|> do                              -- id = expr ;
+        i <- identifier
+        reservedOp "="
+        e <- expr
+        semi
+        return $ AssignStmt i e
+    <|> do                              -- if ( expr ) { command_list } else { command_list }
+        reserved "if"
+        b <- parens $ expr
+        c1 <- command
+        reserved "else"
+        c2 <- command
+        return $ IfStmt b c1 c2
+    <|> do                              -- while ( expr ) { command_list }
+        reserved "while"
+        b <- parens $ expr
+        c <- command
+        return $ WhileStmt b c
+    <|> do                              -- { command_list }
+        seq <- braces $ many command
+        return $ Seq seq
+    <?> "command"
 
 
 
 
 
 
---end demo.hs
+--end Lex.hs
