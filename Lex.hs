@@ -248,6 +248,12 @@ getVar (s@(var, val):ss) v =
         then val
         else getVar ss v
         
+isVar :: VarTable -> String -> Bool
+isVar [] n = False
+isVar ((name, val):vs) n
+    | name == n = True
+    | otherwise = isVar vs n
+        
 -- Tabulka funkcii
 data FuncRecord =   FuncRecord
                     { funcName      :: String
@@ -309,6 +315,28 @@ assignArgsToParams st vt n ((Param pType pName):ps) ((Arg ex):args) =
 
 -- Tabulka symbol
 type SymTable = (VarTable, FuncTable, VarTable, Bool)   -- Globalne premenne, Funkcie, Lokalne premenne, [Globalny kontext == True, Lokalny kontext == false]
+
+getSym :: SymTable -> String -> Value
+getSym  (gt, ft, lt, gc) name
+    | isLocal name = getVar lt name
+    | otherwise = getVar gt name
+    where
+        isLocal n = isVar lt n
+
+setSym :: SymTable -> String -> Value -> SymTable
+setSym (gt, ft, lt, gc) vName val
+    | gc == True = (newVt gt, ft, lt, gc)
+    | otherwise = (gt, ft, newVt lt, gc)
+    where
+        newVt t = setVar t vName val
+
+getFun :: SymTable -> String -> [Arg] -> SymTable
+getFun st@(gt, ft, lt, gc) n args = getFuncResult st ft n args
+
+setFun :: SymTable -> String -> Type -> [Param] -> Cmd -> SymTable
+setFun (gt, ft, lt, gc) n t ps c = (gt, newFt, lt, gc)
+    where
+        newFt = setFunc ft n t ps c
 
 -- Vyhodnotenie vyrazov
 eval :: SymTable -> Expr -> Value
