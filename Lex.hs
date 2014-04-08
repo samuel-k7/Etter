@@ -61,7 +61,7 @@ data Expr =
   | LtEq Expr Expr
   | Eq Expr Expr
   | Neq Expr Expr
-  deriving Show
+  deriving (Show, Eq)
 
 -- Ziskanie typu premennej, funkcie
 getType = do
@@ -144,21 +144,22 @@ data Cmd =
     | Print Expr                        -- vstavana funkcia Print
     | Scan String                       -- vstavana funkcia Scan
     | Seq [Cmd]                         -- zlozeny prikaz
+    deriving (Show, Eq)
 
 -- Datove typy v jazyku
 data Type =
       String
     | Int
     | Double
-    deriving Show
+    deriving (Show, Eq)
 
 -- Struktura parametrov funkcie
 data Param = Param Type String
-    deriving Show
+    deriving (Show, Eq)
 
 -- Struktura argumentov predavanych do funkcie
 data Arg = Arg Expr
-    deriving Show
+    deriving (Show, Eq)
 
 -- Syntakticka analyza
 command =
@@ -231,7 +232,6 @@ command =
     <?> "command"
 
 -- Tabulka premennych
-
 type VarTable = [(String, Value)]
 
 setVar :: VarTable -> String -> Value -> VarTable
@@ -242,13 +242,78 @@ setVar (s@(v,_):ss) var val =
         else s : setVar ss var val
 
 getVar :: VarTable -> String -> Value
-getVar [] v = error $ "Not found: " ++ v
+getVar [] v = error $ "Variable found in symbol table: " ++ v
 getVar (s@(var, val):ss) v =
     if v == var
         then val
         else getVar ss v
+        
+-- Tabulka funkcii
+data FuncRecord =   FuncRecord
+                    { funcName      :: String
+                    , funcType      :: Type
+                    , funcParams    :: [Param]
+                    , funcCommands  :: Cmd
+                    } deriving Show
 
+type FuncTable = [FuncRecord]
+    
+setFunc :: FuncTable -> String -> Type -> [Param] -> Cmd -> FuncTable
+setFunc [] n t ps c = [FuncRecord {funcName=n, funcType=t, funcParams=ps, funcCommands=c}]
+setFunc ft@(f:fs) n t ps c
+    | funcName f == n = updateFunc f t ps c
+    | otherwise = f : setFunc fs n t ps c
+    where
+        updateFunc f t ps c = 
+            if funcType f == t
+            then
+                if funcParams f == ps
+                then
+                    if funcCommands f == Empty
+                    then
+                        if c /= Empty
+                        then
+                            FuncRecord {funcName=n, funcType=t, funcParams=ps, funcCommands=c} : fs
+                        else
+                          error $ "Multiple declarations of function: " ++ funcName f  
+                    else
+                      error $ "Multiple definitions of function: " ++ funcName f  
+                else
+                  error $ "Multiple declarations of function with different parameters: " ++ funcName f  
+            else
+                error $ "Multiple declarations of function with different types: " ++ funcName f
 
+getFuncType :: FuncTable -> String -> Type
+getFuncType [] fName = error $ "Cannot access type of function: " ++ fName
+getFuncType (f:fs) fName
+    | funcName f == fName = funcType f
+    | otherwise = getFuncType fs fName
 
+getFuncResult :: SymTable -> FuncTable -> String -> [Arg] -> SymTable
+getFuncResult _ [] fName _ = error $ "Undefined function call: " ++ fName
+getFuncResult st@(gt, ft, lt, gc) (f:fs) fName fArgs
+    | funcName f == fName = (gt, ft, (assignArgsToParams st [] fName (funcParams f) fArgs), gc)    -- TODO: call interpret
+    | otherwise = getFuncResult st fs fName fArgs
+
+assignArgsToParams :: SymTable -> VarTable -> String -> [Param] -> [Arg] -> VarTable
+assignArgsToParams _ vt _ [] [] = vt
+assignArgsToParams _ _ n (p:ps) [] = error $ "Function called with less arguments than required: " ++ n
+assignArgsToParams _ _ n [] (arg:args) = error $ "Function called with more arguments than required: " ++ n
+assignArgsToParams st vt n ((Param pType pName):ps) ((Arg ex):args) =
+    case (pType, (eval st ex)) of
+        (Int, ValInt val)       -> assignArgsToParams st (setVar vt pName $ ValInt val) n ps args
+        (Double, ValInt val)    -> assignArgsToParams st (setVar vt pName $ ValDouble $ fromIntegral val) n ps args
+        (Double, ValDouble val) -> assignArgsToParams st (setVar vt pName $ ValDouble val) n ps args
+        (String, ValString val) -> assignArgsToParams st (setVar vt pName $ ValString val) n ps args
+        _   -> error $ "Passing parameter of incompatible type to a function: " ++ n
+
+-- Tabulka symbol
+type SymTable = (VarTable, FuncTable, VarTable, Bool)   -- Globalne premenne, Funkcie, Lokalne premenne, [Globalny kontext == True, Lokalny kontext == false]
+
+-- Vyhodnotenie vyrazov
+eval :: SymTable -> Expr -> Value
+eval _ _ = ValInt 0 -- TODO: implement all evaluation
+
+-- Interpret
 
 --end Lex.hs
