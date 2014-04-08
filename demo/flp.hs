@@ -132,6 +132,8 @@ boolExpr = do
       reservedOp name
       return fun
 
+-- ==============================================================
+
 type SymbolTable = [(String, Int)]
 
 set :: SymbolTable -> String -> Int -> SymbolTable
@@ -147,6 +149,8 @@ get (s@(var, val):ss) v =
 	if v == var
 		then val
 		else get ss v
+		
+-- ==============================================================
 
 evaluate :: SymbolTable -> Expr -> Int
 evaluate ts (Const i) = i

@@ -39,11 +39,16 @@ reserved  = P.reserved lexer
 reservedOp= P.reservedOp lexer
 comma     = P.comma lexer
 
+-- Definicia hodnot
+data Value = 
+      ValInt Int
+    | ValDouble Double
+    | ValString String
+    deriving (Show, Eq, Ord)
+
 -- Definicia vyrazov
 data Expr =
-    CInt Int
-  | CDouble Double
-  | CString String
+    Const Value
   | Var String
   | Fun String [Arg]
   | Add Expr Expr
@@ -108,13 +113,13 @@ expr = buildExpressionParser operators term where
 -- Spracovanie vyrazu pomocou definovanych datovych typov
 term = do
     i <- integer
-    return $ CInt $ fromInteger i
+    return $ Const $ ValInt $ fromInteger i
   <|> do
     f <- double
-    return $ CDouble f
+    return $ Const $ ValDouble f
   <|> do
     s <- stringLit
-    return $ CString s
+    return $ Const $ ValString s
   <|> do
     f <- identifier
     a <- parens $ getFuncArgs
@@ -225,7 +230,23 @@ command =
         return $ Seq seq
     <?> "command"
 
+-- Tabulka premennych
 
+type VarTable = [(String, Value)]
+
+setVar :: VarTable -> String -> Value -> VarTable
+setVar [] var val = [(var, val)]
+setVar (s@(v,_):ss) var val =
+    if v == var
+        then (var, val):ss
+        else s : setVar ss var val
+
+getVar :: VarTable -> String -> Value
+getVar [] v = error $ "Not found: " ++ v
+getVar (s@(var, val):ss) v =
+    if v == var
+        then val
+        else getVar ss v
 
 
 
