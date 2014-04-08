@@ -39,11 +39,16 @@ reserved  = P.reserved lexer
 reservedOp= P.reservedOp lexer
 comma     = P.comma lexer
 
+-- Definicia hodnot
+data Value = 
+      ValInt Int
+    | ValDouble Double
+    | ValString String
+    deriving (Show, Eq, Ord)
+
 -- Definicia vyrazov
 data Expr =
-    CInt Int
-  | CDouble Double
-  | CString String
+    Const Value
   | Var String
   | Fun String [Arg]
   | Add Expr Expr
@@ -56,7 +61,7 @@ data Expr =
   | LtEq Expr Expr
   | Eq Expr Expr
   | Neq Expr Expr
-  deriving Show
+  deriving (Show, Eq)
 
 -- Ziskanie typu premennej, funkcie
 getType = do
@@ -108,13 +113,13 @@ expr = buildExpressionParser operators term where
 -- Spracovanie vyrazu pomocou definovanych datovych typov
 term = do
     i <- integer
-    return $ CInt $ fromInteger i
+    return $ Const $ ValInt $ fromInteger i
   <|> do
     f <- double
-    return $ CDouble f
+    return $ Const $ ValDouble f
   <|> do
     s <- stringLit
-    return $ CString s
+    return $ Const $ ValString s
   <|> do
     f <- identifier
     a <- parens $ getFuncArgs
@@ -139,21 +144,22 @@ data Cmd =
     | Print Expr                        -- vstavana funkcia Print
     | Scan String                       -- vstavana funkcia Scan
     | Seq [Cmd]                         -- zlozeny prikaz
+    deriving (Show, Eq)
 
 -- Datove typy v jazyku
 data Type =
       String
     | Int
     | Double
-    deriving Show
+    deriving (Show, Eq)
 
 -- Struktura parametrov funkcie
 data Param = Param Type String
-    deriving Show
+    deriving (Show, Eq)
 
 -- Struktura argumentov predavanych do funkcie
 data Arg = Arg Expr
-    deriving Show
+    deriving (Show, Eq)
 
 -- Syntakticka analyza
 command =
@@ -225,9 +231,117 @@ command =
         return $ Seq seq
     <?> "command"
 
+-- Tabulka premennych
+type VarTable = [(String, Value)]
 
+setVar :: VarTable -> String -> Value -> VarTable
+setVar [] var val = [(var, val)]
+setVar (s@(v,_):ss) var val =
+    if v == var
+        then (var, val):ss
+        else s : setVar ss var val
 
+getVar :: VarTable -> String -> Value
+getVar [] v = error $ "Variable found in symbol table: " ++ v
+getVar (s@(var, val):ss) v =
+    if v == var
+        then val
+        else getVar ss v
+        
+isVar :: VarTable -> String -> Bool
+isVar [] n = False
+isVar ((name, val):vs) n
+    | name == n = True
+    | otherwise = isVar vs n
+        
+-- Tabulka funkcii
+data FuncRecord =   FuncRecord
+                    { funcName      :: String
+                    , funcType      :: Type
+                    , funcParams    :: [Param]
+                    , funcCommands  :: Cmd
+                    } deriving Show
 
+type FuncTable = [FuncRecord]
+    
+setFunc :: FuncTable -> String -> Type -> [Param] -> Cmd -> FuncTable
+setFunc [] n t ps c = [FuncRecord {funcName=n, funcType=t, funcParams=ps, funcCommands=c}]
+setFunc ft@(f:fs) n t ps c
+    | funcName f == n = updateFunc f t ps c
+    | otherwise = f : setFunc fs n t ps c
+    where
+        updateFunc f t ps c = 
+            if funcType f == t
+            then
+                if funcParams f == ps
+                then
+                    if funcCommands f == Empty
+                    then
+                        if c /= Empty
+                        then
+                            FuncRecord {funcName=n, funcType=t, funcParams=ps, funcCommands=c} : fs
+                        else
+                          error $ "Multiple declarations of function: " ++ funcName f  
+                    else
+                      error $ "Multiple definitions of function: " ++ funcName f  
+                else
+                  error $ "Multiple declarations of function with different parameters: " ++ funcName f  
+            else
+                error $ "Multiple declarations of function with different types: " ++ funcName f
 
+getFuncType :: FuncTable -> String -> Type
+getFuncType [] fName = error $ "Cannot access type of function: " ++ fName
+getFuncType (f:fs) fName
+    | funcName f == fName = funcType f
+    | otherwise = getFuncType fs fName
+
+getFuncResult :: SymTable -> FuncTable -> String -> [Arg] -> SymTable
+getFuncResult _ [] fName _ = error $ "Undefined function call: " ++ fName
+getFuncResult st@(gt, ft, lt, gc) (f:fs) fName fArgs
+    | funcName f == fName = (gt, ft, (assignArgsToParams st [] fName (funcParams f) fArgs), gc)    -- TODO: call interpret
+    | otherwise = getFuncResult st fs fName fArgs
+
+assignArgsToParams :: SymTable -> VarTable -> String -> [Param] -> [Arg] -> VarTable
+assignArgsToParams _ vt _ [] [] = vt
+assignArgsToParams _ _ n (p:ps) [] = error $ "Function called with less arguments than required: " ++ n
+assignArgsToParams _ _ n [] (arg:args) = error $ "Function called with more arguments than required: " ++ n
+assignArgsToParams st vt n ((Param pType pName):ps) ((Arg ex):args) =
+    case (pType, (eval st ex)) of
+        (Int, ValInt val)       -> assignArgsToParams st (setVar vt pName $ ValInt val) n ps args
+        (Double, ValInt val)    -> assignArgsToParams st (setVar vt pName $ ValDouble $ fromIntegral val) n ps args
+        (Double, ValDouble val) -> assignArgsToParams st (setVar vt pName $ ValDouble val) n ps args
+        (String, ValString val) -> assignArgsToParams st (setVar vt pName $ ValString val) n ps args
+        _   -> error $ "Passing parameter of incompatible type to a function: " ++ n
+
+-- Tabulka symbol
+type SymTable = (VarTable, FuncTable, VarTable, Bool)   -- Globalne premenne, Funkcie, Lokalne premenne, [Globalny kontext == True, Lokalny kontext == false]
+
+getSym :: SymTable -> String -> Value
+getSym  (gt, ft, lt, gc) name
+    | isLocal name = getVar lt name
+    | otherwise = getVar gt name
+    where
+        isLocal n = isVar lt n
+
+setSym :: SymTable -> String -> Value -> SymTable
+setSym (gt, ft, lt, gc) vName val
+    | gc == True = (newVt gt, ft, lt, gc)
+    | otherwise = (gt, ft, newVt lt, gc)
+    where
+        newVt t = setVar t vName val
+
+getFun :: SymTable -> String -> [Arg] -> SymTable
+getFun st@(gt, ft, lt, gc) n args = getFuncResult st ft n args
+
+setFun :: SymTable -> String -> Type -> [Param] -> Cmd -> SymTable
+setFun (gt, ft, lt, gc) n t ps c = (gt, newFt, lt, gc)
+    where
+        newFt = setFunc ft n t ps c
+
+-- Vyhodnotenie vyrazov
+eval :: SymTable -> Expr -> Value
+eval _ _ = ValInt 0 -- TODO: implement all evaluation
+
+-- Interpret
 
 --end Lex.hs
