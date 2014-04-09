@@ -150,7 +150,7 @@ data Cmd =
 data Type =
       String
     | Int
-    | Double
+    | Double    
     deriving (Show, Eq)
 
 -- Struktura parametrov funkcie
@@ -236,10 +236,17 @@ type VarTable = [(String, Value)]
 
 setVar :: VarTable -> String -> Value -> VarTable
 setVar [] var val = [(var, val)]
-setVar (s@(v,_):ss) var val =
+setVar (s@(v,vT):ss) var val =
     if v == var
-        then (var, val):ss
+        then typeCorrect vT val 
         else s : setVar ss var val
+    where -- overovanie typov pri priradeni hodnoty do premennej.
+        typeCorrect (ValInt i1) (ValInt i2) = (var, val):ss
+        typeCorrect (ValDouble i1) (ValInt i2) = (var, ValDouble $ fromIntegral i2):ss
+        typeCorrect (ValDouble i1) (ValDouble i2) = (var, val):ss
+        typeCorrect (ValString i1) (ValString i2) = (var, val):ss
+        typeCorrect _ _ = error $ "Type missmatch in setting variable :" ++ var 
+            
 
 getVar :: VarTable -> String -> Value
 getVar [] v = error $ "Variable not found in symbol table: " ++ v
@@ -443,5 +450,72 @@ eval ts (Var v) = getSym ts v
 eval _ _ = ValInt 0 -- TODO: implement all evaluation
 
 -- Interpret
+
+interpret :: SymTable -> Cmd -> IO SymTable
+interpret ts (Empty) = return ts
+
+interpret ts (VarDefStmt t varName) = case t of
+        (Int) -> return $ addSym ts varName $ ValInt 0 
+        (Double) -> return $ addSym ts varName $ ValDouble 0.0
+        (String) -> return $ addSym ts varName $ ValString ""
+        
+interpret ts (AssignStmt v e) =  return $ setSym ts v $ eval ts e 
+
+interpret ts (Print e) = do 
+    case eval ts e of
+        (ValInt i) -> putStrLn $ show i
+        (ValDouble d) -> putStrLn $ show d
+        (ValString s) -> putStrLn s
+    return ts
+
+interpret ts (Scan var) = do 
+    case getSym ts var of         
+        (ValInt i) -> do
+            readVal <- readLn :: IO Int  
+            return $ setSym ts var $ ValInt readVal
+        (ValDouble d) -> do
+            readVal <- readLn :: IO Double  
+            return $ setSym ts var $ ValDouble readVal
+        (ValString s) -> do
+            readVal <- getLine  
+            return $ setSym ts var $ ValString readVal
+
+interpret ts (IfStmt cond cmdTrue cmdFalse) = do
+    case eval ts cond of
+        (ValInt i) -> if i == 0 
+            then do
+                interpret ts cmdTrue
+            else do
+                interpret ts cmdFalse
+        _ -> error "Condition is not an integer!"
+
+interpret ts (WhileStmt cond cmd) = do
+    case eval ts cond of
+        (ValInt i) -> if i /= 0
+            then do
+                ts' <- interpret ts cmd
+                interpret ts' $ WhileStmt cond cmd
+            else do
+                return ts
+
+interpret ts (Seq []) = return ts
+interpret ts (Seq (c:cs)) = do
+    ts' <- interpret ts c
+    interpret ts' $ Seq cs
+
+interpret ts (FuncDecl retType funcName params) = return $ setFun ts funcName retType params Empty
+
+interpret ts (Func retType "main" params cmd) = 
+    if (retType == Int && params == []) then do
+            let ts' = setLCon ts
+            interpret ts' cmd
+        else do
+            error "Main has bad return type or has some parameters!"
+
+interpret ts (Func retType funcName params cmd) =   
+    return $ setFun ts funcName retType params cmd
+
+--interpret ts (ReturnStmt e) = 
+  --  addSym ""
 
 --end Lex.hs
