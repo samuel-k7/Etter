@@ -242,7 +242,7 @@ setVar (s@(v,_):ss) var val =
         else s : setVar ss var val
 
 getVar :: VarTable -> String -> Value
-getVar [] v = error $ "Variable found in symbol table: " ++ v
+getVar [] v = error $ "Variable not found in symbol table: " ++ v
 getVar (s@(var, val):ss) v =
     if v == var
         then val
@@ -323,13 +323,21 @@ getSym  (gt, ft, lt, gc) name
     where
         isLocal n = isVar lt n
 
+addSym :: SymTable -> String -> Value -> SymTable
+addSym (gt, ft, lt, gc) vName val
+    | gc == True && not (isVar gt vName) = (setImplicitSym gt, ft, lt, gc)
+    | gc == False && not (isVar lt vName) = (gt, ft, setImplicitSym lt, gc)
+    | otherwise = error $ "Multiple declarations of variable: " ++ vName
+    where
+        setImplicitSym t  = setVar t vName val
+
 setSym :: SymTable -> String -> Value -> SymTable
 setSym (gt, ft, lt, gc) vName val
-    | gc == False && (isLocal vName) = (gt, ft, newVt lt, gc)
-    | otherwise = (newVt gt, ft, lt, gc)
+    | gc == False && (isVar lt vName) = (gt, ft, newVt lt, gc)
+    | isVar gt vName = (newVt gt, ft, lt, gc)
+    | otherwise = error $ "Cannot assign to non-existing variable: " ++ vName
     where
         newVt t = setVar t vName val
-        isLocal n = isVar lt n
 
 getFun :: SymTable -> String -> [Arg] -> SymTable
 getFun st@(gt, ft, lt, gc) n args = getFuncResult st ft n args
