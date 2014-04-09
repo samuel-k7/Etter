@@ -340,6 +340,88 @@ setFun (gt, ft, lt, gc) n t ps c = (gt, newFt, lt, gc)
 
 -- Vyhodnotenie vyrazov
 eval :: SymTable -> Expr -> Value
+eval ts (Const i) = i
+
+eval ts (Add e1 e2) = ev (eval ts e1) (eval ts e2)
+	where 
+		ev (ValInt i1) (ValInt i2) = ValInt (i1 + i2)
+		ev (ValInt i1) (ValDouble i2) = ValDouble (fromIntegral i1 + i2)
+		ev (ValDouble i1) (ValInt i2) = ValDouble (i1 + fromIntegral i2)
+		ev (ValDouble i1) (ValDouble i2) = ValDouble (i1 + i2)
+		ev (ValString i1) (ValString i2) = ValString (i1 ++ i2)
+		ev _ _ = error "Type missmatch in operator +"
+
+eval ts (Sub e1 e2) = ev (eval ts e1) (eval ts e2)
+	where 
+		ev (ValInt i1) (ValInt i2) = ValInt (i1 - i2)
+		ev (ValInt i1) (ValDouble i2) = ValDouble (fromIntegral i1 - i2)
+		ev (ValDouble i1) (ValInt i2) = ValDouble (i1 - fromIntegral i2)
+		ev (ValDouble i1) (ValDouble i2) = ValDouble (i1 - i2)		
+		ev _ _ = error "Type missmatch in operator -"
+
+eval ts (Mult e1 e2) = ev (eval ts e1) (eval ts e2)
+	where 
+		ev (ValInt i1) (ValInt i2) = ValInt (i1 * i2)
+		ev (ValInt i1) (ValDouble i2) = ValDouble (fromIntegral i1 * i2)
+		ev (ValDouble i1) (ValInt i2) = ValDouble (i1 * fromIntegral i2)
+		ev (ValDouble i1) (ValDouble i2) = ValDouble (i1 * i2)		
+		ev _ _ = error "Type missmatch in operator *"
+
+eval ts (Div e1 e2) = ev (eval ts e1) (eval ts e2)
+	where 
+		ev (ValInt i1) (ValInt i2) = if (i2 == 0) then error "Division by zero!" else ValInt (i1 `quot` i2)							
+		ev (ValInt i1) (ValDouble i2) = ValDouble (fromIntegral i1 / i2)
+		ev (ValDouble i1) (ValInt i2) = ValDouble (i1 / fromIntegral i2)
+		ev (ValDouble i1) (ValDouble i2) = ValDouble (i1 / i2)		
+		ev _ _ = error "Type missmatch in operator /"
+
+eval ts (Gt e1 e2) = ev (eval ts e1) (eval ts e2)
+	where 
+		ev (ValInt i1) (ValInt i2) =  if (i1 > i2) then (ValInt 1) else (ValInt 0)
+		ev (ValDouble i1) (ValDouble i2) = if (i1 > i2) then (ValInt 1) else (ValInt 0)
+		ev (ValString i1) (ValString i2) = if (i1 > i2) then (ValInt 1) else (ValInt 0)
+		ev _ _ = error "Type missmatch in operator >"
+
+eval ts (GtEq e1 e2) = ev (eval ts e1) (eval ts e2)
+	where 
+		ev (ValInt i1) (ValInt i2) =  if (i1 >= i2) then (ValInt 1) else (ValInt 0)
+		ev (ValDouble i1) (ValDouble i2) = if (i1 >= i2) then (ValInt 1) else (ValInt 0)
+		ev (ValString i1) (ValString i2) = if (i1 >= i2) then (ValInt 1) else (ValInt 0)
+		ev _ _ = error "Type missmatch in operator >="
+
+eval ts (Lt e1 e2) = ev (eval ts e1) (eval ts e2)
+	where 
+		ev (ValInt i1) (ValInt i2) =  if (i1 < i2) then (ValInt 1) else (ValInt 0)
+		ev (ValDouble i1) (ValDouble i2) = if (i1 < i2) then (ValInt 1) else (ValInt 0)
+		ev (ValString i1) (ValString i2) = if (i1 < i2) then (ValInt 1) else (ValInt 0)
+		ev _ _ = error "Type missmatch in operator <"
+
+eval ts (LtEq e1 e2) = ev (eval ts e1) (eval ts e2)
+	where 
+		ev (ValInt i1) (ValInt i2) =  if (i1 <= i2) then (ValInt 1) else (ValInt 0)
+		ev (ValDouble i1) (ValDouble i2) = if (i1 <= i2) then (ValInt 1) else (ValInt 0)
+		ev (ValString i1) (ValString i2) = if (i1 <= i2) then (ValInt 1) else (ValInt 0)
+		ev _ _ = error "Type missmatch in operator <="
+
+eval ts (Eq e1 e2) = ev (eval ts e1) (eval ts e2)
+	where 
+		ev (ValInt i1) (ValInt i2) =  if (i1 == i2) then (ValInt 1) else (ValInt 0)
+		ev (ValDouble i1) (ValDouble i2) = if (i1 == i2) then (ValInt 1) else (ValInt 0)
+		ev (ValString i1) (ValString i2) = if (i1 == i2) then (ValInt 1) else (ValInt 0)
+		ev _ _ = error "Type missmatch in operator =="
+
+eval ts (Neq e1 e2) = ev (eval ts e1) (eval ts e2)
+	where 
+		ev (ValInt i1) (ValInt i2) =  if (i1 /= i2) then (ValInt 1) else (ValInt 0)
+		ev (ValDouble i1) (ValDouble i2) = if (i1 /= i2) then (ValInt 1) else (ValInt 0)
+		ev (ValString i1) (ValString i2) = if (i1 /= i2) then (ValInt 1) else (ValInt 0)
+		ev _ _ = error "Type missmatch in operator !="
+
+eval ts (Var v) = getSym ts v
+
+--eval ts (Fun name args) = getVar lt "return"
+--	where  (gt, ft, lt, gc)  = getFun ts name args
+
 eval _ _ = ValInt 0 -- TODO: implement all evaluation
 
 -- Interpret
