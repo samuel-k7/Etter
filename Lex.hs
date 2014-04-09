@@ -1,4 +1,4 @@
-module Lex( lexer, whiteSpace) where
+module Main( main ) where
 
 import System.Environment( getArgs )
 import System.IO
