@@ -1,4 +1,4 @@
-module Lex( lexer, whiteSpace ) where
+module Lex( lexer, whiteSpace) where
 
 import System.Environment( getArgs )
 import System.IO
@@ -302,11 +302,12 @@ getFuncType (f:fs) fName
     | funcName f == fName = funcType f
     | otherwise = getFuncType fs fName
 
-getFuncResult :: SymTable -> FuncTable -> String -> [Arg] -> SymTable
+getFuncResult :: SymTable -> FuncTable -> String -> [Arg] -> IO SymTable
 getFuncResult _ [] fName _ = error $ "Undefined function call: " ++ fName
 getFuncResult st@(gt, ft, lt, gc) (f:fs) fName fArgs
-    | funcName f == fName = (gt, ft, (assignArgsToParams st [] fName (funcParams f) fArgs), gc)    -- TODO: call interpret
+    | funcName f == fName = interpret (gt, ft, (assignArgsToParams st [] fName (funcParams f) fArgs), gc) (funcCommands f)    -- TODO: call interpret
     | otherwise = getFuncResult st fs fName fArgs
+    -- | funcName f == fName = (gt, ft, (assignArgsToParams st [] fName (funcParams f) fArgs), gc)    -- TODO: call interpret
 
 assignArgsToParams :: SymTable -> VarTable -> String -> [Param] -> [Arg] -> VarTable
 assignArgsToParams _ vt _ [] [] = vt
@@ -346,7 +347,7 @@ setSym (gt, ft, lt, gc) vName val
     where
         newVt t = setVar t vName val
 
-getFun :: SymTable -> String -> [Arg] -> SymTable
+getFun :: SymTable -> String -> [Arg] -> IO SymTable
 getFun st@(gt, ft, lt, gc) n args = getFuncResult st ft n args
 
 setFun :: SymTable -> String -> Type -> [Param] -> Cmd -> SymTable
@@ -444,8 +445,10 @@ eval ts (Neq e1 e2) = ev (eval ts e1) (eval ts e2)
 
 eval ts (Var v) = getSym ts v
 
---eval ts (Fun name args) = getVar lt "return"
---	where  (gt, ft, lt, gc)  = getFun ts name args
+--eval ts (Fun name args) = do
+--        getVar lt "return"
+--	       where 
+--                (gt, ft, lt, gc) = getFun ts name args
 
 eval _ _ = ValInt 0 -- TODO: implement all evaluation
 
@@ -498,12 +501,18 @@ interpret ts (WhileStmt cond cmd) = do
             else do
                 return ts
 
+interpret ts (ReturnStmt e) = 
+    return $ addSym ts "return" $ eval ts e
+
 interpret ts (Seq []) = return ts
 interpret ts (Seq (c:cs)) = do
     ts' <- interpret ts c
     interpret ts' $ Seq cs
 
-interpret ts (FuncDecl retType funcName params) = return $ setFun ts funcName retType params Empty
+interpret ts (FuncCall name args) = 
+    getFun ts name args
+
+interpret ts (FuncDecl retType funcName params) = return ts
 
 interpret ts (Func retType "main" params cmd) = 
     if (retType == Int && params == []) then do
@@ -513,9 +522,37 @@ interpret ts (Func retType "main" params cmd) =
             error "Main has bad return type or has some parameters!"
 
 interpret ts (Func retType funcName params cmd) =   
-    return $ setFun ts funcName retType params cmd
+    return ts
+
+preInterpret :: SymTable -> Cmd -> IO SymTable
+preInterpret ts (VarDefStmt t varName) = return ts
+preInterpret ts (Func retType funcName params cmd) = return $ setFun ts funcName retType params cmd
+preInterpret ts (FuncDecl retType funcName params) = return $ setFun ts funcName retType params Empty
+
 
 --interpret ts (ReturnStmt e) = 
   --  addSym ""
+aep = do
+    whiteSpace
+    ast <- command
+    eof
+    return ast
+    <?> "Aep parsing error"
+
+parseAep input file =
+    case parse aep file input of
+        Left e -> error $ show e
+        Right ast -> ast 
+    
+main = do
+    args <- getArgs
+    if length args /= 1
+    then error "Specify one input file."
+    else do
+        let fileName = args!!0
+        input <- readFile fileName
+        let ast = parseAep input fileName
+        (_, ft, _, _) <- preInterpret ([],[],[], True) ast
+        interpret ([], ft, [], True) ast 
 
 --end Lex.hs
