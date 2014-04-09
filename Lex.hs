@@ -325,10 +325,11 @@ getSym  (gt, ft, lt, gc) name
 
 setSym :: SymTable -> String -> Value -> SymTable
 setSym (gt, ft, lt, gc) vName val
-    | gc == True = (newVt gt, ft, lt, gc)
-    | otherwise = (gt, ft, newVt lt, gc)
+    | gc == False && (isLocal vName) = (gt, ft, newVt lt, gc)
+    | otherwise = (newVt gt, ft, lt, gc)
     where
         newVt t = setVar t vName val
+        isLocal n = isVar lt n
 
 getFun :: SymTable -> String -> [Arg] -> SymTable
 getFun st@(gt, ft, lt, gc) n args = getFuncResult st ft n args
@@ -337,6 +338,15 @@ setFun :: SymTable -> String -> Type -> [Param] -> Cmd -> SymTable
 setFun (gt, ft, lt, gc) n t ps c = (gt, newFt, lt, gc)
     where
         newFt = setFunc ft n t ps c
+        
+setGCon :: SymTable -> SymTable
+setGCon (gt, ft, lt, gc) = (gt, ft, lt, True)
+
+setLCon :: SymTable -> SymTable
+setLCon (gt, ft, lt, gc) = (gt, ft, lt, False)
+
+switchCon :: SymTable -> SymTable
+switchCon (gt, ft, lt, gc) = (gt, ft, lt, not gc)
 
 -- Vyhodnotenie vyrazov
 eval :: SymTable -> Expr -> Value
