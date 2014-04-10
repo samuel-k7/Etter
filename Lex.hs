@@ -179,6 +179,17 @@ command_var_func t i =
     <|> do
         params <- parens getParams
         command_func t i params
+        
+command_ident i =
+    do                                  -- id ( args_list )
+        a <- parens $ getFuncArgs
+        semi
+        return $ FuncCall i a 
+    <|> do                              -- id = expr ;
+        reservedOp "="
+        e <- expr
+        semi
+        return $ AssignStmt i e
 
 command =
     do
@@ -188,13 +199,9 @@ command =
         t <- getType
         i <- identifier
         command_var_func t i
-    -- (5)
-    <|> do                              -- id ( args_list ) ;
+    <|> do                              -- id ( args_list ) ; id = expr ;
         i <- identifier
-        a <- parens $ getFuncArgs
-        semi
-        return $ FuncCall i a
-    -- (4)
+        command_ident i
     <|> do                              -- return expr ;
         reserved "return"
         e <- expr
@@ -210,12 +217,6 @@ command =
         i <- parens $ identifier
         semi
         return $ Scan i
-    <|> do                              -- id = expr ;
-        i <- identifier
-        reservedOp "="
-        e <- expr
-        semi
-        return $ AssignStmt i e
     <|> do                              -- if ( expr ) { command_list } else { command_list }
         reserved "if"
         b <- parens $ expr
@@ -571,6 +572,10 @@ preInterpret :: SymTable -> Cmd -> IO SymTable
 preInterpret ts (VarDefStmt t varName) = return ts
 preInterpret ts (Func retType funcName params cmd) = return $ setFun ts funcName retType params cmd
 preInterpret ts (FuncDecl retType funcName params) = return $ setFun ts funcName retType params Empty
+preInterpret ts (Seq []) = return ts
+preInterpret ts (Seq (c:cs)) = do
+    ts' <- preInterpret ts c
+    preInterpret ts' $ Seq cs
 preInterpret ts _ = return ts
 
 
