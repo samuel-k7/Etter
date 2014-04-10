@@ -530,7 +530,7 @@ interpret ts (Scan var) = do
 interpret ts (IfStmt cond cmdTrue cmdFalse) = do
     evaluated <- eval ts cond
     case evaluated of
-        (ValInt i) -> if i == 0 
+        (ValInt i) -> if i /= 0 
             then do
                 interpret ts cmdTrue
             else do
