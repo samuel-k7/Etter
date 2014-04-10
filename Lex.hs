@@ -19,7 +19,7 @@ aelDef = emptyDef
     , opStart        = oneOf "=+*-!><"
     , opLetter       = opStart aelDef
     , reservedOpNames= [ "=", "+", "*", "-", "/", "==", "!=", "<", "<=", ">=", ">" ]
-    , reservedNames  = [ "double", "else", "if", "int", "print", "scan", "string", "while" ]
+    , reservedNames  = [ "double", "else", "if", "int", "print", "scan", "string", "while", "return" ]
     , caseSensitive  = True
     }
 
@@ -205,7 +205,7 @@ command =
         return $ Print e
     <|> do                              -- scan ( expr ) ;
         reserved "scan"
-        i <- identifier
+        i <- parens $ identifier
         semi
         return $ Scan i
     <|> do                              -- id = expr ;
@@ -593,7 +593,7 @@ main = do
     else do
         let fileName = args!!0
         input <- readFile fileName
-        let ast = parseAep input fileName
+        let ast = parseAep ("{" ++ input ++ "}") fileName
         (_, ft, _, _) <- preInterpret ([],[],[], True) ast
         interpret ([], ft, [], True) ast 
 
