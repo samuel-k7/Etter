@@ -544,7 +544,7 @@ interpret ts (IfStmt cond cmdTrue cmdFalse) = do
                 interpret ts cmdTrue
             else do
                 interpret ts cmdFalse
-        _ -> error "Condition is not an integer!"
+        _ -> error "Condition in if statement is not an integer value!"
 
 interpret ts (WhileStmt cond cmd) = do
     evaluated <- eval ts cond
@@ -555,6 +555,7 @@ interpret ts (WhileStmt cond cmd) = do
                 interpret ts' $ WhileStmt cond cmd
             else do
                 return ts
+        _ -> error "Condition in while statement is not an integer value!"
 
 interpret ts (ReturnStmt e) = do
     evaluated <- eval ts e
@@ -618,7 +619,7 @@ main = do
         let fileName = args!!0
         input <- readFile fileName
         let ast = parseAep ("{" ++ input ++ "}") fileName
-        (_, ft, _, _) <- preInterpret ([],[],[], True) ast
+        (_, ft, _, _) <- preInterpret ([],[],[], True) ast        
         if (isFun ft "main") then do
         	interpret ([], ft, [], True) ast 
         else do
