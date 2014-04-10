@@ -111,6 +111,13 @@ expr = buildExpressionParser operators term where
     Infix ( do { reservedOp name; return fun } ) AssocLeft
 
 -- Spracovanie vyrazu pomocou definovanych datovych typov
+term_ident i =
+    do
+        a <- parens $ getFuncArgs
+        return $ Fun i a
+    <|> do
+        return $ Var i
+
 term = do
     i <- integer
     return $ Const $ ValInt $ fromInteger i
@@ -121,12 +128,8 @@ term = do
     s <- stringLit
     return $ Const $ ValString s
   <|> do
-    f <- identifier
-    a <- parens $ getFuncArgs
-    return $ Fun f a
-  <|> do
-    v <- identifier
-    return $ Var v
+    i <- identifier
+    term_ident i
   <|> parens expr
   <?> "term"
 
