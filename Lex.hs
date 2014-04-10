@@ -162,30 +162,32 @@ data Arg = Arg Expr
     deriving (Show, Eq)
 
 -- Syntakticka analyza
+
+
+command_func t i p =
+    do                                  -- return_type id ( params_list ) ;
+        semi
+        return $ FuncDecl t i p
+    <|> do                              -- return_type id ( params_list ) { command_list }
+        c <- command
+        return $ Func t i p c
+        
+command_var_func t i =
+    do                                  -- typ id ;
+        semi
+        return $ VarDefStmt t i
+    <|> do
+        params <- parens getParams
+        command_func t i params
+
 command =
     do
         semi
         return Empty
-    -- (3.2)
-    <|> do                              -- typ id ;
+    <|> do                              -- typ id ; return_type id ( params_list ) ; return_type id ( params_list ) { command_list }
         t <- getType
         i <- identifier
-        semi
-        return $ VarDefStmt t i
-    -- (3.3)
-    <|> do                              -- return_type id ( params_list ) ;
-        t <- getType
-        i <- identifier
-        params <- parens $ getParams
-        semi
-        return $ FuncDecl t i params
-    -- (3.3)
-    <|> do                              -- return_type id ( params_list ) { command_list }
-        t <- getType
-        i <- identifier
-        params <- parens $ getParams
-        c <- command
-        return $ Func t i params c
+        command_var_func t i
     -- (5)
     <|> do                              -- id ( args_list ) ;
         i <- identifier
