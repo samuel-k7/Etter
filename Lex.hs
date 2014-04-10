@@ -77,7 +77,7 @@ getType = do
 -- Ziskanie paramatrov funkcie pri jej deklaracii, definicii
 getMoreParams t i = do
         comma
-        p <- getParams
+        p <- getNoEmptyParams
         return $ (Param t i):p
     <|> do
         return $ [(Param t i)]
@@ -89,10 +89,15 @@ getParams = do
     <|> do
         return []
 
+getNoEmptyParams = do
+        t <- getType
+        i <- identifier
+        getMoreParams t i
+
 -- Ziskanie argumentov funkcie pri jej volani
 getMoreFuncArgs e = do
         comma
-        a <- getFuncArgs
+        a <- getNoEmptyFuncArgs
         return $ (Arg e):a
     <|> do
         return $ [(Arg e)]
@@ -103,6 +108,10 @@ getFuncArgs = do
         getMoreFuncArgs e
     <|> do
         return []
+
+getNoEmptyFuncArgs = do
+        e <- expr
+        getMoreFuncArgs e
 
 -- Precedencna analyza vyrazov
 expr = buildExpressionParser operators term where
