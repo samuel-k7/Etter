@@ -27,17 +27,17 @@ aelDef = emptyDef
 lexer = P.makeTokenParser aelDef
 
 -- Pomocne funkcie lexikalnej analyzy
-whiteSpace= P.whiteSpace lexer
-integer   = P.integer lexer
-double    = P.float lexer
-stringLit = P.stringLiteral lexer
-parens    = P.parens lexer
-braces    = P.braces lexer
-semi      = P.semi lexer
-identifier= P.identifier lexer
-reserved  = P.reserved lexer
-reservedOp= P.reservedOp lexer
-comma     = P.comma lexer
+whiteSpace = P.whiteSpace lexer
+integer    = P.integer lexer
+intOrFloat = P.naturalOrFloat lexer
+stringLit  = P.stringLiteral lexer
+parens     = P.parens lexer
+braces     = P.braces lexer
+semi       = P.semi lexer
+identifier = P.identifier lexer
+reserved   = P.reserved lexer
+reservedOp = P.reservedOp lexer
+comma      = P.comma lexer
 
 -- Definicia hodnot
 data Value = 
@@ -123,11 +123,10 @@ term_ident i =
         return $ Var i
 
 term = do
-    i <- integer
-    return $ Const $ ValInt $ fromInteger i
-  <|> do
-    f <- double
-    return $ Const $ ValDouble f
+    f <- intOrFloat
+    case f of 
+    	Left i -> return $ Const $ ValInt $ fromInteger i
+    	Right d -> return $ Const $ ValDouble d    
   <|> do
     s <- stringLit
     return $ Const $ ValString s
