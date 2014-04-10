@@ -4,7 +4,7 @@ TEST_DIR="testplatz"
 SOURCES_DIR="sources"
 
 GCC_NAME="gcc"
-HSINT_NAME="temphsint.sh"
+HSINT_NAME="../Lex"
 
 mkdir $TEST_DIR
 echo Vytvaram zlozku $TEST_DIR
@@ -36,7 +36,10 @@ for SFILE in `cd $SOURCES_DIR; ls *.c`; do
 	RET_C=$?
 
 	# interpretacia cez nas interpret
-	./$HSINT_NAME $TEST_DIR/2run_cpp.c < $TEST_DIR/c_in > $TEST_DIR/hs_out
+	#echo ---
+	#cat $TEST_DIR/2run_hs.c
+	#echo ---
+	./$HSINT_NAME $TEST_DIR/2run_hs.c < $TEST_DIR/c_in > $TEST_DIR/hs_out
 	RET_HS=$?
 
 	# diffnem referencny s nasim
