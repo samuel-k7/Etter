@@ -1,0 +1,8 @@
+/sources	- Zlozka pre subory s testami
+
+Ako vyzera test:
+
+nazov_suboru.c - subor so zdrojakom v C
+nazov_suboru.c.in - data, ktore sa kopnu na STDIN (proste suffix .in)
+
+Overuje sa return value a vystup sa diffuje s vystupom, ktory doda binarka prelozena G++
