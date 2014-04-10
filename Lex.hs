@@ -558,7 +558,9 @@ interpret ts (ReturnStmt e) = do
 interpret ts (Seq []) = return ts
 interpret ts (Seq (c:cs)) = do
     ts' <- interpret ts c
-    interpret ts' $ Seq cs
+    case c of
+        (ReturnStmt _) -> return ts'
+        _ -> interpret ts' $ Seq cs
 
 interpret ts (FuncCall name args) = do
     getFun ts name args
