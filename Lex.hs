@@ -575,7 +575,13 @@ interpret ts (FuncDecl retType funcName params) = return ts
 interpret ts (Func retType "main" params cmd) = 
     if (retType == Int && params == []) then do
             let ts' = setLCon ts
-            interpret ts' cmd
+            tsAft@(_,_,lt,_) <- interpret ts' cmd
+            if (isVar lt "return") then do
+            	case (getVar lt "return") of
+            		(ValInt i) -> return tsAft
+            		_ -> error "Bad type of returning value from main!"
+            else do
+            	return tsAft
         else do
             error "Main has bad return type or has some parameters!"
 
