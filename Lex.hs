@@ -569,6 +569,7 @@ preInterpret :: SymTable -> Cmd -> IO SymTable
 preInterpret ts (VarDefStmt t varName) = return ts
 preInterpret ts (Func retType funcName params cmd) = return $ setFun ts funcName retType params cmd
 preInterpret ts (FuncDecl retType funcName params) = return $ setFun ts funcName retType params Empty
+preInterpret ts _ = return ts
 
 
 --interpret ts (ReturnStmt e) = 
