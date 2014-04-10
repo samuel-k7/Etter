@@ -75,28 +75,32 @@ getType = do
         return String
 
 -- Ziskanie paramatrov funkcie pri jej deklaracii, definicii
-getParams = do
-        t <- getType
-        i <- identifier
+getMoreParams t i = do
         comma
         p <- getParams
         return $ (Param t i):p
     <|> do
+        return $ [(Param t i)]
+
+getParams = do
         t <- getType
         i <- identifier
-        return $ [(Param t i)]
+        getMoreParams t i
     <|> do
         return []
 
 -- Ziskanie argumentov funkcie pri jej volani
-getFuncArgs = do
-        e <- expr
+getMoreFuncArgs e = do
         comma
         a <- getFuncArgs
         return $ (Arg e):a
     <|> do
-        e <- expr
         return $ [(Arg e)]
+
+
+getFuncArgs = do
+        e <- expr
+        getMoreFuncArgs e
     <|> do
         return []
 
@@ -313,9 +317,8 @@ getFuncResult _ [] fName _ = error $ "Undefined function call: " ++ fName
 getFuncResult st@(gt, ft, lt, gc) (f:fs) fName fArgs
     | funcName f == fName = do
             ltTable <- assignArgsToParams st [] fName (funcParams f) fArgs
-            interpret (gt, ft, ltTable, gc) (funcCommands f)    -- TODO: call interpret
+            interpret (gt, ft, ltTable, gc) (funcCommands f)
     | otherwise = getFuncResult st fs fName fArgs
-    -- | funcName f == fName = (gt, ft, (assignArgsToParams st [] fName (funcParams f) fArgs), gc)    -- TODO: call interpret
 
 assignArgsToParams :: SymTable -> VarTable -> String -> [Param] -> [Arg] -> IO VarTable
 assignArgsToParams _ vt _ [] [] = return vt
@@ -357,7 +360,8 @@ setSym (gt, ft, lt, gc) vName val
         newVt t = setVar t vName val
 
 getFun :: SymTable -> String -> [Arg] -> IO SymTable
-getFun st@(gt, ft, lt, gc) n args = getFuncResult st ft n args
+getFun st@(gt, ft, lt, gc) n args = do
+    getFuncResult st ft n args
 
 setFun :: SymTable -> String -> Type -> [Param] -> Cmd -> SymTable
 setFun (gt, ft, lt, gc) n t ps c = (gt, newFt, lt, gc)
@@ -485,7 +489,7 @@ eval ts (Neq e1 e2) = do
 eval ts (Var v) = return $ getSym ts v
 
 eval ts@(gt, ft, lt, gc) (Fun name args) = do
-    (gt', ft', lt', gc') <- getFun (gt, ft, [], gc) name args
+    (gt', ft', lt', gc') <- getFun (gt, ft, lt, gc) name args
     case (getVar lt' "return", getFuncType ft' name) of
         (ValInt i, Int) -> return $ ValInt i
         (ValInt i, Double) -> return $ ValDouble $ fromIntegral i
@@ -503,7 +507,7 @@ interpret ts (VarDefStmt t varName) = case t of
         (Double) -> return $ addSym ts varName $ ValDouble 0.0
         (String) -> return $ addSym ts varName $ ValString ""
         
-interpret ts (AssignStmt v e) =  do
+interpret ts (AssignStmt v e) =  do 
     evaluated <- eval ts e 
     return $ setSym ts v evaluated
 
@@ -556,7 +560,7 @@ interpret ts (Seq (c:cs)) = do
     ts' <- interpret ts c
     interpret ts' $ Seq cs
 
-interpret ts (FuncCall name args) = 
+interpret ts (FuncCall name args) = do
     getFun ts name args
 
 interpret ts (FuncDecl retType funcName params) = return ts
