@@ -270,7 +270,7 @@ isVar [] n = False
 isVar ((name, val):vs) n
     | name == n = True
     | otherwise = isVar vs n
-        
+
 -- Tabulka funkcii
 data FuncRecord =   FuncRecord
                     { funcName      :: String
@@ -362,6 +362,12 @@ setSym (gt, ft, lt, gc) vName val
 getFun :: SymTable -> String -> [Arg] -> IO SymTable
 getFun st@(gt, ft, lt, gc) n args = do
     getFuncResult st ft n args
+
+isFun :: FuncTable -> String -> Bool
+isFun [] name = False
+isFun (f:ft) name 
+	| name == funcName f = True
+	| otherwise = isFun ft name
 
 setFun :: SymTable -> String -> Type -> [Param] -> Cmd -> SymTable
 setFun (gt, ft, lt, gc) n t ps c = (gt, newFt, lt, gc)
@@ -585,11 +591,8 @@ preInterpret ts (Seq []) = return ts
 preInterpret ts (Seq (c:cs)) = do
     ts' <- preInterpret ts c
     preInterpret ts' $ Seq cs
-preInterpret ts _ = return ts
+preInterpret ts _ = error "Only declaration or definition can be in global context!"
 
-
---interpret ts (ReturnStmt e) = 
-  --  addSym ""
 aep = do
     whiteSpace
     ast <- command
@@ -611,6 +614,9 @@ main = do
         input <- readFile fileName
         let ast = parseAep ("{" ++ input ++ "}") fileName
         (_, ft, _, _) <- preInterpret ([],[],[], True) ast
-        interpret ([], ft, [], True) ast 
+        if (isFun ft "main") then do
+        	interpret ([], ft, [], True) ast 
+        else do
+        	error "Missing main function!"
 
 --end Lex.hs
