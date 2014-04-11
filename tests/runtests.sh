@@ -30,10 +30,16 @@ for SFILE in `cd $SOURCES_DIR; ls *.c`; do
 	cat $TEST_DIR/2run_hs.c | sed 's/print(\([^)]*\))/std::cout << \1 << std::endl/g' | sed 's/scan(s_\([^)]*\))/getline(std::cin,s_\1)/g' | sed 's/scan(i_\([^)]*\))/scanf("%d",\&i_\1)/g' >> $TEST_DIR/2run_cpp.c
 	#cat $TEST_DIR/2run_cpp.c
 
-	# preklad zdrojaku pomocou g++
-	g++ $TEST_DIR/2run_cpp.c -o $TEST_DIR/2run_c
-	./$TEST_DIR/2run_c < $TEST_DIR/c_in > $TEST_DIR/c_out
-	RET_C=$?
+	# ak existuje referencny subor, pouzijem ho, inac ziskam referencny pomocou g++
+	if [ -f $SOURCES_DIR/$SFILE.ref ]; then
+		cp $SOURCES_DIR/$SFILE.ref $TEST_DIR/c_out
+	else
+		# preklad zdrojaku pomocou g++
+		g++ $TEST_DIR/2run_cpp.c -o $TEST_DIR/2run_c
+		./$TEST_DIR/2run_c < $TEST_DIR/c_in > $TEST_DIR/c_out
+		RET_C=$?
+	fi
+
 
 	# interpretacia cez nas interpret
 	#echo ---
