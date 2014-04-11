@@ -178,23 +178,6 @@ data Arg = Arg Expr
 
 -- Syntakticka analyza
 
-
-command_func t i p =
-    do                                  -- return_type id ( params_list ) ;
-        semi
-        return $ FuncDecl t i p
-    <|> do                              -- return_type id ( params_list ) { command_list }
-        c <- command
-        return $ Func t i p c
-        
-command_var_func t i =
-    do                                  -- typ id ;
-        semi
-        return $ VarDefStmt t i
-    <|> do
-        params <- parens getParams
-        command_func t i params
-        
 command_ident i =
     do                                  -- id ( args_list )
         a <- parens $ getFuncArgs
@@ -206,15 +189,8 @@ command_ident i =
         semi
         return $ AssignStmt i e
 
-command =
-    do
-        semi
-        return Empty
-    <|> do                              -- typ id ; return_type id ( params_list ) ; return_type id ( params_list ) { command_list }
-        t <- getType
-        i <- identifier
-        command_var_func t i
-    <|> do                              -- id ( args_list ) ; id = expr ;
+command_local_body = 
+    do                                  -- id ( args_list ) ; id = expr ;
         i <- identifier
         command_ident i
     <|> do                              -- return expr ;
@@ -235,20 +211,78 @@ command =
     <|> do                              -- if ( expr ) { command_list } else { command_list }
         reserved "if"
         b <- parens $ expr
-        c1 <- command
+        c1 <- command_local_body
         reserved "else"
-        c2 <- command
+        c2 <- command_local_body
         return $ IfStmt b c1 c2
     <|> do                              -- while ( expr ) { command_list }
         reserved "while"
         b <- parens $ expr
-        c <- command
+        c <- command_local_body
         return $ WhileStmt b c
     <|> do                              -- { command_list }
-        seq <- braces $ many command
+        seq <- braces $ many command_local_body
+        return $ Seq seq
+
+command_local_decl = 
+    do
+        semi
+        return Empty
+    <|> do                              -- typ id ;
+        t <- getType
+        i <- identifier
+        semi
+        return $ VarDefStmt t i
+        
+command_local_tog = 
+    do
+        seq_dec <- many command_local_decl
+        seq_body <- many command_local_body
+        return $ seq_dec ++ seq_body
+        
+command_local = 
+    do                                  -- { command_list }
+        seq <- braces $ command_local_tog
+        return $ Seq seq
+
+command_func t i p =
+    do                                  -- return_type id ( params_list ) ;
+        semi
+        return $ FuncDecl t i p
+    <|> do                              -- return_type id ( params_list ) { command_list }
+        c <- command_local
+        return $ Func t i p c
+
+command_global_ident t i =
+    do
+        semi
+        return $ VarDefStmt t i
+    <|> do
+        params <- parens getParams
+        command_func t i params
+
+command_global_decl =
+    do
+        semi
+        return Empty
+    <|> do                              -- typ id ;
+        t <- getType
+        i <- identifier
+        command_global_ident t i
+
+command_global =
+    do
+        seq_global <- many command_global_decl
+        return $ seq_global
+
+command =
+    do                                  -- program
+        seq <- braces $ command_global
         return $ Seq seq
     <?> "command"
-
+        
+        
+        
 -- Tabulka premennych
 type VarTable = [(String, Value)]
 
