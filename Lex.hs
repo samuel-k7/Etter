@@ -289,11 +289,13 @@ data FuncRecord =   FuncRecord
 
 type FuncTable = [FuncRecord]
     
-setFunc :: FuncTable -> String -> Type -> [Param] -> Cmd -> FuncTable
-setFunc [] n t ps c = [FuncRecord {funcName=n, funcType=t, funcParams=ps, funcCommands=c}]
-setFunc ft@(f:fs) n t ps c
+setFunc :: FuncTable -> String -> Type -> [Param] -> Cmd -> Bool -> FuncTable
+setFunc [] n t ps c b       -- if Bool (before main) is True, then save, else dont save
+    | b == True = [FuncRecord {funcName=n, funcType=t, funcParams=ps, funcCommands=c}]
+    | otherwise = []
+setFunc ft@(f:fs) n t ps c b
     | funcName f == n = updateFunc f t ps c
-    | otherwise = f : setFunc fs n t ps c
+    | otherwise = f : setFunc fs n t ps c b
     where
         updateFunc f t ps c = 
             if funcType f == t
@@ -380,7 +382,7 @@ isFun (f:ft) name
 setFun :: SymTable -> String -> Type -> [Param] -> Cmd -> SymTable
 setFun (gt, ft, lt, gc) n t ps c = (gt, newFt, lt, gc)
     where
-        newFt = setFunc ft n t ps c
+        newFt = setFunc ft n t ps c gc
         
 setGCon :: SymTable -> SymTable
 setGCon (gt, ft, lt, gc) = (gt, ft, lt, True)
@@ -606,8 +608,10 @@ interpret ts (Func retType funcName params cmd) =
 
 preInterpret :: SymTable -> Cmd -> IO SymTable
 preInterpret ts (VarDefStmt t varName) = return ts
-preInterpret ts (Func retType funcName params cmd) = return $ setFun ts funcName retType params cmd
-preInterpret ts (FuncDecl retType funcName params) = return $ setFun ts funcName retType params Empty
+preInterpret ts@(_,_,_,gc) (Func retType "main" params cmd) = return $ setLCon $ setFun ts "main" retType params cmd
+preInterpret ts@(_,_,_,gc) (FuncDecl retType "main" params) = return $ setLCon $ setFun ts "main" retType params Empty
+preInterpret ts@(_,_,_,gc) (Func retType funcName params cmd) = return $ setFun ts funcName retType params cmd
+preInterpret ts@(_,_,_,gc) (FuncDecl retType funcName params) = return $ setFun ts funcName retType params Empty
 preInterpret ts (Seq []) = return ts
 preInterpret ts (Seq (c:cs)) = do
     ts' <- preInterpret ts c
