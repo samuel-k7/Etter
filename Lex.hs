@@ -504,12 +504,18 @@ eval ts (Var v) = return $ getSym ts v
 
 eval ts@(gt, ft, lt, gc) (Fun name args) = do
     (gt', ft', lt', gc') <- getFun (gt, ft, lt, gc) name args
-    case (getVar lt' "return", getFuncType ft' name) of
-        (ValInt i, Int) -> return $ ValInt i
-        (ValInt i, Double) -> return $ ValDouble $ fromIntegral i
-        (ValDouble d, Double) -> return $ ValDouble d
-        (ValString s, String) -> return $ ValString s
-        (_,_) -> error $ "Bad type of returned value in function: " ++ name
+    if (isVar lt' "return") then do
+	    case (getVar lt' "return", getFuncType ft' name) of
+	        (ValInt i, Int) -> return $ ValInt i
+	        (ValInt i, Double) -> return $ ValDouble $ fromIntegral i
+	        (ValDouble d, Double) -> return $ ValDouble d
+	        (ValString s, String) -> return $ ValString s
+	        (_,_) -> error $ "Bad type of returned value in function: " ++ name
+	else do
+		case (getFuncType ft' name) of
+			(Int) -> return $ ValInt 0
+			(Double) -> return $ ValDouble 0.0
+			(String) -> return $ ValString ""
 
 -- Interpret
 
