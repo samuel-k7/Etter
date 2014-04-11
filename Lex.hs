@@ -614,6 +614,60 @@ preInterpret ts (Seq (c:cs)) = do
     preInterpret ts' $ Seq cs
 preInterpret ts _ = error "Only declaration or definition can be in global context!"
 
+isInDeclDefList :: String -> [String] -> Bool
+isInDeclDefList _ [] = False
+isInDeclDefList name (l:ls)
+    | name == l = True
+    | otherwise = isInDeclDefList name ls
+
+exprDeclDefTest :: Expr -> [String] -> Bool
+exprDeclDefTest e lt = case (e) of
+    (Fun name args) -> ((isInDeclDefList name lt) && (argsDeclDefTest args lt))
+    (Add e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
+    (Sub e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
+    (Mult e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
+    (Div e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
+    (Gt e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
+    (GtEq e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
+    (Lt e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
+    (LtEq e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
+    (Eq e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
+    (Neq e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
+    _ -> True
+
+argsDeclDefTest :: [Arg] -> [String] -> Bool
+argsDeclDefTest [] _ = True
+argsDeclDefTest ((Arg e):as) lt = if(exprDeclDefTest e lt)
+                                    then argsDeclDefTest as lt
+                                    else False
+
+funcDeclDefTest :: Cmd -> [String] -> Bool
+funcDeclDefTest (Seq []) _ = True
+funcDeclDefTest (Seq (c:cs)) lt = case (c) of
+    (FuncDecl _ name _) -> funcDeclDefTest (Seq cs) (name:lt)
+    (Func _ name _ cmd) -> if(funcDeclDefTest cmd (name:lt))
+                            then funcDeclDefTest (Seq cs) (name:lt)
+                            else False
+    (FuncCall name args) -> if((isInDeclDefList name lt) && (argsDeclDefTest args lt))
+                            then funcDeclDefTest (Seq cs) lt
+                            else False
+    (IfStmt e cmd1 cmd2) -> if((exprDeclDefTest e lt) && (funcDeclDefTest cmd1 lt) && (funcDeclDefTest cmd2 lt))
+                            then funcDeclDefTest (Seq cs) lt
+                            else False
+    (WhileStmt e cmd) -> if((exprDeclDefTest e lt) && (funcDeclDefTest cmd lt))
+                            then funcDeclDefTest (Seq cs) lt
+                            else False
+    (AssignStmt _ e) -> if(exprDeclDefTest e lt)
+                        then funcDeclDefTest (Seq cs) lt
+                        else False
+    (ReturnStmt e) -> if(exprDeclDefTest e lt)
+                        then funcDeclDefTest (Seq cs) lt
+                        else False
+    (Print e) -> if(exprDeclDefTest e lt)
+                    then funcDeclDefTest (Seq cs) lt
+                    else False
+    _ -> funcDeclDefTest (Seq cs) lt
+
 aep = do
     whiteSpace
     ast <- command
@@ -634,10 +688,15 @@ main = do
         let fileName = args!!0
         input <- readFile fileName
         let ast = parseAep ("{" ++ input ++ "}") fileName
-        (_, ft, _, _) <- preInterpret ([],[],[], True) ast        
-        if (isFun ft "main") then do
-        	interpret ([], ft, [], True) ast 
-        else do
-        	error "Missing main function!"
+        --putStrLn $ show ast
+        if(funcDeclDefTest ast [])
+            then do
+                (_, ft, _, _) <- preInterpret ([],[],[], True) ast        
+                if (isFun ft "main") then do
+        	       interpret ([], ft, [], True) ast 
+                else do
+        	       error "Missing main function!"
+            else do
+                error "Calling undefined or undeclared function!"
 
 --end Lex.hs
