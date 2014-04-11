@@ -652,6 +652,14 @@ preInterpret ts (Seq (c:cs)) = do
     preInterpret ts' $ Seq cs
 preInterpret ts _ = error "Only declaration or definition can be in global context!"
 
+sectionsTest :: Cmd -> Bool -> Bool
+sectionsTest (Seq []) _ = True
+sectionsTest (Seq (c:cs)) b = case(c) of
+    (VarDefStmt _ _) -> if(b)
+                        then sectionsTest (Seq cs) True
+                        else False
+    _ -> sectionsTest (Seq cs) False
+
 isInDeclDefList :: String -> [String] -> Bool
 isInDeclDefList _ [] = False
 isInDeclDefList name (l:ls)
@@ -726,15 +734,19 @@ main = do
         let fileName = args!!0
         input <- readFile fileName
         let ast = parseAep ("{" ++ input ++ "}") fileName
-        --putStrLn $ show ast
-        if(funcDeclDefTest ast [])
+
+        if(sectionsTest ast True)
             then do
-                (_, ft, _, _) <- preInterpret ([],[],[], True) ast        
-                if (isFun ft "main") then do
-        	       interpret ([], ft, [], True) ast 
-                else do
-        	       error "Missing main function!"
+                if(funcDeclDefTest ast [])
+                    then do
+                        (_, ft, _, _) <- preInterpret ([],[],[], True) ast        
+                        if (isFun ft "main") then do
+                	       interpret ([], ft, [], True) ast 
+                        else do
+                	       error "Missing main function!"
+                    else do
+                        error "Calling undefined or undeclared function!"
             else do
-                error "Calling undefined or undeclared function!"
+                error "Global variable declaration after function declaration or definition!"
 
 --end Lex.hs
