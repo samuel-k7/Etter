@@ -322,13 +322,19 @@ data FuncRecord =   FuncRecord
                     } deriving Show
 
 type FuncTable = [FuncRecord]
+
+originalParametersTest :: [Param] -> [String] -> [Param]
+originalParametersTest [] _ = []
+originalParametersTest ((Param ptype pname):ps) ls = if isInList pname ls
+                                                 then error "Multiple parameters with same name!"
+                                                 else ((Param ptype pname):originalParametersTest ps (pname:ls))
     
 setFunc :: FuncTable -> String -> Type -> [Param] -> Cmd -> Bool -> FuncTable
 setFunc [] n t ps c b       -- if Bool (before main) is True, then save, else dont save
-    | b == True = [FuncRecord {funcName=n, funcType=t, funcParams=ps, funcCommands=c}]
+    | b == True = [FuncRecord {funcName=n, funcType=t, funcParams=originalParametersTest ps [], funcCommands=c}]
     | otherwise = []
 setFunc ft@(f:fs) n t ps c b
-    | funcName f == n = updateFunc f t ps c
+    | funcName f == n = updateFunc f t (originalParametersTest ps []) c
     | otherwise = f : setFunc fs n t ps c b
     where
         updateFunc f t ps c = 
@@ -660,15 +666,15 @@ sectionsTest (Seq (c:cs)) b = case(c) of
                         else False
     _ -> sectionsTest (Seq cs) False
 
-isInDeclDefList :: String -> [String] -> Bool
-isInDeclDefList _ [] = False
-isInDeclDefList name (l:ls)
+isInList :: String -> [String] -> Bool
+isInList _ [] = False
+isInList name (l:ls)
     | name == l = True
-    | otherwise = isInDeclDefList name ls
+    | otherwise = isInList name ls
 
 exprDeclDefTest :: Expr -> [String] -> Bool
 exprDeclDefTest e lt = case (e) of
-    (Fun name args) -> ((isInDeclDefList name lt) && (argsDeclDefTest args lt))
+    (Fun name args) -> ((isInList name lt) && (argsDeclDefTest args lt))
     (Add e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
     (Sub e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
     (Mult e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
@@ -694,7 +700,7 @@ funcDeclDefTest (Seq (c:cs)) lt = case (c) of
     (Func _ name _ cmd) -> if(funcDeclDefTest cmd (name:lt))
                             then funcDeclDefTest (Seq cs) (name:lt)
                             else False
-    (FuncCall name args) -> if((isInDeclDefList name lt) && (argsDeclDefTest args lt))
+    (FuncCall name args) -> if((isInList name lt) && (argsDeclDefTest args lt))
                             then funcDeclDefTest (Seq cs) lt
                             else False
     (IfStmt e cmd1 cmd2) -> if((exprDeclDefTest e lt) && (funcDeclDefTest cmd1 lt) && (funcDeclDefTest cmd2 lt))
