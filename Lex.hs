@@ -387,25 +387,25 @@ getFuncResult :: SymTable -> FuncTable -> String -> [Arg] -> IO SymTable
 getFuncResult _ [] fName _ = error $ "Undefined function call: " ++ fName
 getFuncResult st@(gt, ft, lt, gc) (f:fs) fName fArgs
     | funcName f == fName = do
-            ltTable <- assignArgsToParams st [] fName (funcParams f) fArgs
+            (gt', ltTable) <- assignArgsToParams st [] fName (funcParams f) fArgs
             if (funcCommands f) == Empty
             then
                 error $ "Undefined function " ++ fName
             else
-                interpret (gt, ft, ltTable, gc) (funcCommands f)
+                interpret (gt', ft, ltTable, gc) (funcCommands f)
     | otherwise = getFuncResult st fs fName fArgs
 
-assignArgsToParams :: SymTable -> VarTable -> String -> [Param] -> [Arg] -> IO VarTable
-assignArgsToParams _ vt _ [] [] = return vt
-assignArgsToParams _ _ n (p:ps) [] = error $ "Function called with less arguments than required: " ++ n
-assignArgsToParams _ _ n [] (arg:args) = error $ "Function called with more arguments than required: " ++ n
-assignArgsToParams st vt n ((Param pType pName):ps) ((Arg ex):args) = do
-    evaluated <- eval st ex
+assignArgsToParams :: SymTable -> VarTable -> String -> [Param] -> [Arg] -> IO (VarTable, VarTable)
+assignArgsToParams (gt, _, lt, _) vt _ [] [] = return (gt, vt)
+assignArgsToParams _ _ n (p:ps) [] = error $ "Function called with less argumegt than required: " ++ n
+assignArgsToParams _ _ n [] (arg:args) = error $ "Function called with more argumegt than required: " ++ n
+assignArgsToParams st@(gt', ft', lt', gc') vt n ((Param pType pName):ps) ((Arg ex):args) = do
+    (gt, evaluated) <- eval st ex
     case (pType, evaluated) of
-        (Int, ValInt val)       -> assignArgsToParams st (setVar vt pName $ ValInt val) n ps args
-        (Double, ValInt val)    -> assignArgsToParams st (setVar vt pName $ ValDouble $ fromIntegral val) n ps args
-        (Double, ValDouble val) -> assignArgsToParams st (setVar vt pName $ ValDouble val) n ps args
-        (String, ValString val) -> assignArgsToParams st (setVar vt pName $ ValString val) n ps args
+        (Int, ValInt val)       -> assignArgsToParams (gt, ft', lt', gc') (setVar vt pName $ ValInt val) n ps args
+        (Double, ValInt val)    -> assignArgsToParams (gt, ft', lt', gc') (setVar vt pName $ ValDouble $ fromIntegral val) n ps args
+        (Double, ValDouble val) -> assignArgsToParams (gt, ft', lt', gc') (setVar vt pName $ ValDouble val) n ps args
+        (String, ValString val) -> assignArgsToParams (gt, ft', lt', gc') (setVar vt pName $ ValString val) n ps args
         _   -> error $ "Passing parameter of incompatible type to a function: " ++ n
 
 -- Tabulka symbol
@@ -459,130 +459,130 @@ switchCon :: SymTable -> SymTable
 switchCon (gt, ft, lt, gc) = (gt, ft, lt, not gc)
 
 -- Vyhodnotenie vyrazov
-eval :: SymTable -> Expr -> IO Value
-eval ts (Const i) = return i
+eval :: SymTable -> Expr -> IO (VarTable, Value)
+eval ts@(gt,_,_,_) (Const i) = return (gt, i)
 
-eval ts (Add e1 e2) = do
-    evalLeft <- eval ts e1
-    evalRight <- eval ts e2
-    ev evalLeft evalRight
-    where 
-        ev (ValInt i1) (ValInt i2) = return $ ValInt (i1 + i2)
-        ev (ValInt i1) (ValDouble i2) = return $ ValDouble (fromIntegral i1 + i2)
-        ev (ValDouble i1) (ValInt i2) = return $ ValDouble (i1 + fromIntegral i2)
-        ev (ValDouble i1) (ValDouble i2) = return $ ValDouble (i1 + i2)
-        ev (ValString i1) (ValString i2) = return $ ValString (i1 ++ i2)
-        ev _ _ = error "Type missmatch in operator +"
+eval ts@(gt, ft, lt, gc) (Add e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
+	where 
+		ev (ValInt i1) (ValInt i2) gt' = return (gt', ValInt (i1 + i2))
+		ev (ValInt i1) (ValDouble i2) gt' = return (gt', ValDouble (fromIntegral i1 + i2))
+		ev (ValDouble i1) (ValInt i2) gt' = return (gt', ValDouble (i1 + fromIntegral i2))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', ValDouble (i1 + i2))
+		ev (ValString i1) (ValString i2) gt' = return (gt', ValString (i1 ++ i2))
+		ev _ _ _ = error "Type missmatch in operator +"
 
-eval ts (Sub e1 e2) = do
-    evalLeft <- eval ts e1
-    evalRight <- eval ts e2
-    ev evalLeft evalRight
-    where 
-        ev (ValInt i1) (ValInt i2) = return $ ValInt (i1 - i2)
-        ev (ValInt i1) (ValDouble i2) = return $ ValDouble (fromIntegral i1 - i2)
-        ev (ValDouble i1) (ValInt i2) = return $ ValDouble (i1 - fromIntegral i2)
-        ev (ValDouble i1) (ValDouble i2) = return $ ValDouble (i1 - i2)     
-        ev _ _ = error "Type missmatch in operator -"
+eval ts@(gt, ft, lt, gc) (Sub e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
+	where 
+		ev (ValInt i1) (ValInt i2) gt' = return (gt', ValInt (i1 - i2))
+		ev (ValInt i1) (ValDouble i2) gt' = return (gt', ValDouble (fromIntegral i1 - i2))
+		ev (ValDouble i1) (ValInt i2) gt' = return (gt', ValDouble (i1 - fromIntegral i2))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', ValDouble (i1 - i2))		
+		ev _ _ _ = error "Type missmatch in operator -"
 
-eval ts (Mult e1 e2) = do
-    evalLeft <- eval ts e1
-    evalRight <- eval ts e2
-    ev evalLeft evalRight
-    where 
-        ev (ValInt i1) (ValInt i2) = return $ ValInt (i1 * i2)
-        ev (ValInt i1) (ValDouble i2) = return $ ValDouble (fromIntegral i1 * i2)
-        ev (ValDouble i1) (ValInt i2) = return $ ValDouble (i1 * fromIntegral i2)
-        ev (ValDouble i1) (ValDouble i2) = return $ ValDouble (i1 * i2)     
-        ev _ _ = error "Type missmatch in operator *"
+eval ts@(gt, ft, lt, gc) (Mult e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
+	where 
+		ev (ValInt i1) (ValInt i2) gt' = return (gt', ValInt (i1 * i2))
+		ev (ValInt i1) (ValDouble i2) gt' = return (gt', ValDouble (fromIntegral i1 * i2))
+		ev (ValDouble i1) (ValInt i2) gt' = return (gt', ValDouble (i1 * fromIntegral i2))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', ValDouble (i1 * i2))
+		ev _ _ _ = error "Type missmatch in operator *"
 
-eval ts (Div e1 e2) = do
-    evalLeft <- eval ts e1
-    evalRight <- eval ts e2
-    ev evalLeft evalRight
-    where 
-        ev (ValInt i1) (ValInt i2) = if (i2 == 0) then error "Division by zero!" else return $ ValInt (i1 `quot` i2)                            
-        ev (ValInt i1) (ValDouble i2) = return $ ValDouble (fromIntegral i1 / i2)
-        ev (ValDouble i1) (ValInt i2) = return $ ValDouble (i1 / fromIntegral i2)
-        ev (ValDouble i1) (ValDouble i2) = return $ ValDouble (i1 / i2)     
-        ev _ _ = error "Type missmatch in operator /"
+eval ts@(gt, ft, lt, gc) (Div e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
+	where 
+		ev (ValInt i1) (ValInt i2) gt' = return (gt', if (i2 == 0) then error "Division by zero!" else ValInt (i1 `quot` i2))							
+		ev (ValInt i1) (ValDouble i2) gt' = return (gt', ValDouble (fromIntegral i1 / i2))
+		ev (ValDouble i1) (ValInt i2) gt' = return  (gt', ValDouble (i1 / fromIntegral i2))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', ValDouble (i1 / i2))
+		ev _ _ _ = error "Type missmatch in operator /"
 
-eval ts (Gt e1 e2) = do
-    evalLeft <- eval ts e1
-    evalRight <- eval ts e2
-    ev evalLeft evalRight
-    where 
-        ev (ValInt i1) (ValInt i2) =  if (i1 > i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev (ValDouble i1) (ValDouble i2) = if (i1 > i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev (ValString i1) (ValString i2) = if (i1 > i2) then  return $(ValInt 1) else return $ (ValInt 0)
-        ev _ _ = error "Type missmatch in operator >"
+eval ts@(gt, ft, lt, gc) (Gt e1 e2) = do
+   	(gt', evalLeft) <- eval ts e1
+	(gt', evalRight) <- eval (gt', ft, lt, gc) e2
+	ev evalLeft evalRight gt'
+	where 
+		ev (ValInt i1) (ValInt i2) gt' = return (gt', if (i1 > i2) then (ValInt 1) else (ValInt 0))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', if (i1 > i2) then (ValInt 1) else (ValInt 0))
+		ev (ValString i1) (ValString i2) gt' = return (gt', if (i1 > i2) then  (ValInt 1) else (ValInt 0))
+		ev _ _ _ = error "Type missmatch in operator >"
 
-eval ts (GtEq e1 e2) = do
-    evalLeft <- eval ts e1
-    evalRight <- eval ts e2
-    ev evalLeft evalRight
-    where 
-        ev (ValInt i1) (ValInt i2) =  if (i1 >= i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev (ValDouble i1) (ValDouble i2) = if (i1 >= i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev (ValString i1) (ValString i2) = if (i1 >= i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev _ _ = error "Type missmatch in operator >="
+eval ts@(gt, ft, lt, gc) (GtEq e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
+	where 
+		ev (ValInt i1) (ValInt i2) gt' =  return (gt', if (i1 >= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', if (i1 >= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValString i1) (ValString i2) gt' = return (gt', if (i1 >= i2) then (ValInt 1) else (ValInt 0))
+		ev _ _ _ = error "Type missmatch in operator >="
 
-eval ts (Lt e1 e2) = do
-    evalLeft <- eval ts e1
-    evalRight <- eval ts e2
-    ev evalLeft evalRight
-    where 
-        ev (ValInt i1) (ValInt i2) =  if (i1 < i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev (ValDouble i1) (ValDouble i2) = if (i1 < i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev (ValString i1) (ValString i2) = if (i1 < i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev _ _ = error "Type missmatch in operator <"
+eval ts@(gt, ft, lt, gc) (Lt e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
+	where 
+		ev (ValInt i1) (ValInt i2) gt' =  return (gt', if (i1 < i2) then (ValInt 1) else (ValInt 0))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', if (i1 < i2) then (ValInt 1) else (ValInt 0))
+		ev (ValString i1) (ValString i2) gt' = return (gt', if (i1 < i2) then (ValInt 1) else (ValInt 0))
+		ev _ _ _ = error "Type missmatch in operator <"
 
-eval ts (LtEq e1 e2) = do
-    evalLeft <- eval ts e1
-    evalRight <- eval ts e2
-    ev evalLeft evalRight
-    where 
-        ev (ValInt i1) (ValInt i2) =  if (i1 <= i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev (ValDouble i1) (ValDouble i2) = if (i1 <= i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev (ValString i1) (ValString i2) = if (i1 <= i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev _ _ = error "Type missmatch in operator <="
+eval ts@(gt, ft, lt, gc) (LtEq e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
+	where 
+		ev (ValInt i1) (ValInt i2) gt' =  return (gt', if (i1 <= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', if (i1 <= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValString i1) (ValString i2) gt' = return (gt', if (i1 <= i2) then (ValInt 1) else (ValInt 0))
+		ev _ _ _ = error "Type missmatch in operator <="
 
-eval ts (Eq e1 e2) = do
-    evalLeft <- eval ts e1
-    evalRight <- eval ts e2
-    ev evalLeft evalRight
-    where 
-        ev (ValInt i1) (ValInt i2) =  if (i1 == i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev (ValDouble i1) (ValDouble i2) = if (i1 == i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev (ValString i1) (ValString i2) = if (i1 == i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev _ _ = error "Type missmatch in operator =="
+eval ts@(gt, ft, lt, gc) (Eq e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
+	where 
+		ev (ValInt i1) (ValInt i2) gt' = return (gt', if (i1 == i2) then (ValInt 1) else (ValInt 0))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', if (i1 == i2) then (ValInt 1) else (ValInt 0))
+		ev (ValString i1) (ValString i2) gt' = return (gt', if (i1 == i2) then (ValInt 1) else (ValInt 0))
+		ev _ _ _ = error "Type missmatch in operator =="
 
-eval ts (Neq e1 e2) = do
-    evalLeft <- eval ts e1
-    evalRight <- eval ts e2
-    ev evalLeft evalRight
-    where 
-        ev (ValInt i1) (ValInt i2) =  if (i1 /= i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev (ValDouble i1) (ValDouble i2) = if (i1 /= i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev (ValString i1) (ValString i2) = if (i1 /= i2) then return $ (ValInt 1) else return $ (ValInt 0)
-        ev _ _ = error "Type missmatch in operator !="
+eval ts@(gt, ft, lt, gc) (Neq e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
+	where 
+		ev (ValInt i1) (ValInt i2) gt' =  return (gt', if (i1 /= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', if (i1 /= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValString i1) (ValString i2) gt' = return (gt', if (i1 /= i2) then (ValInt 1) else (ValInt 0))
+		ev _ _ _ = error "Type missmatch in operator !="
 
-eval ts (Var v) = return $ getSym ts v
+eval ts@(gt, _, _, _) (Var v) = return (gt, getSym ts v)
 
 eval ts@(gt, ft, lt, gc) (Fun name args) = do
     (gt', ft', lt', gc') <- getFun (gt, ft, lt, gc) name args
     if (isVar lt' "return") then do
-        case (getVar lt' "return", getFuncType ft' name) of
-            (ValInt i, Int) -> return $ ValInt i
-            (ValInt i, Double) -> return $ ValDouble $ fromIntegral i
-            (ValDouble d, Double) -> return $ ValDouble d
-            (ValString s, String) -> return $ ValString s
-            (_,_) -> error $ "Bad type of returned value in function: " ++ name
-    else do
-        case (getFuncType ft' name) of
-            (Int) -> return $ ValInt 0
-            (Double) -> return $ ValDouble 0.0
-            (String) -> return $ ValString ""
+	    case (getVar lt' "return", getFuncType ft' name) of
+	        (ValInt i, Int) -> return (gt', ValInt i)
+	        (ValInt i, Double) -> return (gt', ValDouble $ fromIntegral i)
+	        (ValDouble d, Double) -> return (gt', ValDouble d)
+	        (ValString s, String) -> return (gt', ValString s)
+	        (_,_) -> error $ "Bad type of returned value in function: " ++ name
+	else do
+		case (getFuncType ft' name) of
+			(Int) -> return (gt', ValInt 0)
+			(Double) -> return (gt', ValDouble 0.0)
+			(String) -> return (gt', ValString "")
 
 hasVariableOriginalName :: String -> FuncTable -> Bool
 hasVariableOriginalName _ [] = True
@@ -608,25 +608,25 @@ interpret ts@(gt,ft,lt,gc) (VarDefStmtAssign t varName expr) =
     if(gc == True && (hasVariableOriginalName varName ft) == False)
         then error $ "Identifier \"" ++ varName ++ "\" has been declared already!"
         else do
-            v <- eval ts expr
-            case (t,v) of
-                (Int,(ValInt i)) -> return $ addSym ts varName $ ValInt i
-                (Double,(ValInt i)) -> return $ addSym ts varName $ ValDouble $ fromIntegral i
-                (Double,(ValDouble d)) -> return $ addSym ts varName $ ValDouble d
-                (String,(ValString s)) -> return $ addSym ts varName $ ValString s
+            (gt', v) <- eval ts expr
+            case (t, v) of
+                (Int,(ValInt i)) -> return $ addSym (gt', ft, lt, gc) varName $ ValInt i
+                (Double,(ValInt i)) -> return $ addSym (gt', ft, lt, gc) varName $ ValDouble $ fromIntegral i
+                (Double,(ValDouble d)) -> return $ addSym (gt', ft, lt, gc) varName $ ValDouble d
+                (String,(ValString s)) -> return $ addSym (gt', ft, lt, gc) varName $ ValString s
                 _ -> error $ "Type missmatch in assigment to \"" ++ varName ++ "\"!"
         
-interpret ts (AssignStmt v e) =  do 
-    evaluated <- eval ts e 
-    return $ setSym ts v evaluated
+interpret ts@(gt, ft, lt, gc) (AssignStmt v e) =  do 
+    (gt', evaluated) <- eval ts e 
+    return $ setSym (gt', ft, lt, gc) v evaluated
 
-interpret ts (Print e) = do 
-    evaluated <- eval ts e
+interpret ts@(gt, ft, lt, gc) (Print e) = do 
+    (gt', evaluated) <- eval ts e 
     case evaluated of
         (ValInt i) -> putStrLn $ show i
         (ValDouble d) -> putStrLn $ show d
         (ValString s) -> putStrLn s
-    return ts
+    return (gt', ft, lt, gc)
 
 interpret ts (Scan var) = do 
     case getSym ts var of         
@@ -640,30 +640,30 @@ interpret ts (Scan var) = do
             readVal <- getLine  
             return $ setSym ts var $ ValString readVal
 
-interpret ts (IfStmt cond cmdTrue cmdFalse) = do
-    evaluated <- eval ts cond
+interpret ts@(gt, ft, lt, gc) (IfStmt cond cmdTrue cmdFalse) = do
+    (gt', evaluated) <- eval ts cond 
     case evaluated of
         (ValInt i) -> if i /= 0 
             then do
-                interpret ts cmdTrue
+                interpret (gt', ft, lt, gc) cmdTrue
             else do
-                interpret ts cmdFalse
+                interpret (gt', ft, lt, gc) cmdFalse
         _ -> error "Condition in if statement is not an integer value!"
 
-interpret ts (WhileStmt cond cmd) = do
-    evaluated <- eval ts cond
+interpret ts@(gt, ft, lt, gc) (WhileStmt cond cmd) = do
+    (gt', evaluated) <- eval ts cond 
     case evaluated of
         (ValInt i) -> if i /= 0
             then do
-                ts' <- interpret ts cmd
+                ts' <- interpret (gt', ft, lt, gc) cmd
                 interpret ts' $ WhileStmt cond cmd
             else do
-                return ts
+                return (gt', ft, lt, gc)
         _ -> error "Condition in while statement is not an integer value!"
 
-interpret ts (ReturnStmt e) = do
-    evaluated <- eval ts e
-    return $ addSym ts "return" evaluated
+interpret ts@(gt, ft, lt, gc) (ReturnStmt e) = do
+    (gt', evaluated) <- eval ts e
+    return $ addSym (gt', ft, lt, gc) "return" evaluated
 
 interpret ts (Seq []) = return ts
 interpret ts (Seq (c:cs)) = do
@@ -672,9 +672,9 @@ interpret ts (Seq (c:cs)) = do
         (ReturnStmt _) -> return ts'
         _ -> interpret ts' $ Seq cs
 
-interpret ts@(gt,ft,lt,gc) (FuncCall name args) = do 
-    tmp@(gt',ft',lt',gc') <- getFun ts name args 
-    return (gt',ft',lt,gc')
+interpret ts@(gt,ft,lt,gc) (FuncCall name args) = do
+    tmp@(gt',ft',lt',gc') <- getFun ts name args
+    return (gt',ft',lt, gc')
 
 interpret ts (FuncDecl retType funcName params) = return ts
 
@@ -737,6 +737,7 @@ exprDeclDefTest e lt = case (e) of
     (LtEq e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
     (Eq e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
     (Neq e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
+
     _ -> True
 
 argsDeclDefTest :: [Arg] -> [String] -> Bool
