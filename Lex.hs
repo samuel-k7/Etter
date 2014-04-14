@@ -639,8 +639,9 @@ interpret ts (Seq (c:cs)) = do
         (ReturnStmt _) -> return ts'
         _ -> interpret ts' $ Seq cs
 
-interpret ts (FuncCall name args) = do
-    getFun ts name args
+interpret ts@(gt,ft,lt,gc) (FuncCall name args) = do 
+    tmp@(gt',ft',lt',gc') <- getFun ts name args 
+    return (gt',ft',lt,gc')
 
 interpret ts (FuncDecl retType funcName params) = return ts
 
