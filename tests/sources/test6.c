@@ -1,8 +1,15 @@
+int mu = 0;
+
 int main();
 
 int func(double a)
 {
-	main();
+    if(mu==0)
+    {
+        mu = 1;
+        main();
+    }
+
 }
 
 int main()

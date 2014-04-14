@@ -1,0 +1,3 @@
+int_c: "sources/testCommaEndParams.c" (line 1, column 17):
+unexpected ")"
+expecting "int", "double" or "string"

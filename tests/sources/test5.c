@@ -15,7 +15,7 @@ int func2()
 
 int func3()
 {
-	print("pedofil");
+	print("skiller");
 }
 
 int dot()
@@ -27,10 +27,10 @@ int main()
 {
 	string a;
 	scan(a);
-	//func1();
-	//space();
-	//func2();
-	//space();
+	func1();
+	space();
+	func2();
+	space();
 	if(a=="")
 	{
 		func3();
