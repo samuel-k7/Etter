@@ -649,7 +649,7 @@ interpret ts (Func retType funcName params cmd) =
 preInterpret :: SymTable -> Cmd -> IO SymTable
 preInterpret ts (VarDefStmt t varName) = return ts
 preInterpret ts@(_,_,_,gc) (Func retType "main" params cmd) = return $ setLCon $ setFun ts "main" retType params cmd
-preInterpret ts@(_,_,_,gc) (FuncDecl retType "main" params) = return $ setLCon $ setFun ts "main" retType params Empty
+preInterpret ts@(_,_,_,gc) (FuncDecl retType "main" params) = return $ setFun ts "main" retType params Empty
 preInterpret ts@(_,_,_,gc) (Func retType funcName params cmd) = return $ setFun ts funcName retType params cmd
 preInterpret ts@(_,_,_,gc) (FuncDecl retType funcName params) = return $ setFun ts funcName retType params Empty
 preInterpret ts (Seq []) = return ts
