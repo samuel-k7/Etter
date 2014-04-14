@@ -1,0 +1,3 @@
+int_c: "sources/testNegNumber.c" (line 4, column 9):
+unexpected "-"
+expecting term
