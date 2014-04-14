@@ -367,7 +367,11 @@ getFuncResult _ [] fName _ = error $ "Undefined function call: " ++ fName
 getFuncResult st@(gt, ft, lt, gc) (f:fs) fName fArgs
     | funcName f == fName = do
             ltTable <- assignArgsToParams st [] fName (funcParams f) fArgs
-            interpret (gt, ft, ltTable, gc) (funcCommands f)
+            if (funcCommands f) == Empty
+            then
+                error $ "Undefined function " ++ fName
+            else
+                interpret (gt, ft, ltTable, gc) (funcCommands f)
     | otherwise = getFuncResult st fs fName fArgs
 
 assignArgsToParams :: SymTable -> VarTable -> String -> [Param] -> [Arg] -> IO VarTable
