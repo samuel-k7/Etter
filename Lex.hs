@@ -391,8 +391,9 @@ getFuncResult st@(gt, ft, lt, gc) (f:fs) fName fArgs
             if (funcCommands f) == Empty
             then
                 error $ "Undefined function " ++ fName
-            else
-                interpret (gt', ft, ltTable, gc) (funcCommands f)
+            else do
+                (st,_) <- interpret (gt', ft, ltTable, gc) (funcCommands f)
+                return st
     | otherwise = getFuncResult st fs fName fArgs
 
 assignArgsToParams :: SymTable -> VarTable -> String -> [Param] -> [Arg] -> IO (VarTable, VarTable)
@@ -592,17 +593,17 @@ hasVariableOriginalName name (f:fs)
 
 -- Interpret
 
-interpret :: SymTable -> Cmd -> IO SymTable
-interpret ts (Empty) = return ts
+interpret :: SymTable -> Cmd -> IO (SymTable,Bool)
+interpret ts (Empty) = return (ts,False)
 
 interpret ts@(_,ft,_,gc) (VarDefStmt t varName) =
     if(gc == True && (hasVariableOriginalName varName ft) == False)
         then error $ "Identifier \"" ++ varName ++ "\" has been declared already!"
         else
             case t of
-            (Int) -> return $ addSym ts varName $ ValInt 0 
-            (Double) -> return $ addSym ts varName $ ValDouble 0.0
-            (String) -> return $ addSym ts varName $ ValString ""
+            (Int) -> return ((addSym ts varName $ ValInt 0),False)
+            (Double) -> return ((addSym ts varName $ ValDouble 0.0),False)
+            (String) -> return ((addSym ts varName $ ValString ""),False)
 
 interpret ts@(gt,ft,lt,gc) (VarDefStmtAssign t varName expr) =
     if(gc == True && (hasVariableOriginalName varName ft) == False)
@@ -610,15 +611,15 @@ interpret ts@(gt,ft,lt,gc) (VarDefStmtAssign t varName expr) =
         else do
             (gt', v) <- eval ts expr
             case (t, v) of
-                (Int,(ValInt i)) -> return $ addSym (gt', ft, lt, gc) varName $ ValInt i
-                (Double,(ValInt i)) -> return $ addSym (gt', ft, lt, gc) varName $ ValDouble $ fromIntegral i
-                (Double,(ValDouble d)) -> return $ addSym (gt', ft, lt, gc) varName $ ValDouble d
-                (String,(ValString s)) -> return $ addSym (gt', ft, lt, gc) varName $ ValString s
+                (Int,(ValInt i)) -> return ((addSym (gt', ft, lt, gc) varName $ ValInt i),False)
+                (Double,(ValInt i)) -> return ((addSym (gt', ft, lt, gc) varName $ ValDouble $ fromIntegral i),False)
+                (Double,(ValDouble d)) -> return ((addSym (gt', ft, lt, gc) varName $ ValDouble d),False)
+                (String,(ValString s)) -> return ((addSym (gt', ft, lt, gc) varName $ ValString s),False)
                 _ -> error $ "Type missmatch in assigment to \"" ++ varName ++ "\"!"
         
 interpret ts@(gt, ft, lt, gc) (AssignStmt v e) =  do 
     (gt', evaluated) <- eval ts e 
-    return $ setSym (gt', ft, lt, gc) v evaluated
+    return ((setSym (gt', ft, lt, gc) v evaluated),False)
 
 interpret ts@(gt, ft, lt, gc) (Print e) = do 
     (gt', evaluated) <- eval ts e 
@@ -626,19 +627,19 @@ interpret ts@(gt, ft, lt, gc) (Print e) = do
         (ValInt i) -> putStrLn $ show i
         (ValDouble d) -> putStrLn $ show d
         (ValString s) -> putStrLn s
-    return (gt', ft, lt, gc)
+    return ((gt', ft, lt, gc),False)
 
 interpret ts (Scan var) = do 
     case getSym ts var of         
         (ValInt i) -> do
             readVal <- readLn :: IO Int  
-            return $ setSym ts var $ ValInt readVal
+            return ((setSym ts var $ ValInt readVal),False)
         (ValDouble d) -> do
             readVal <- readLn :: IO Double  
-            return $ setSym ts var $ ValDouble readVal
+            return ((setSym ts var $ ValDouble readVal),False)
         (ValString s) -> do
             readVal <- getLine  
-            return $ setSym ts var $ ValString readVal
+            return ((setSym ts var $ ValString readVal),False)
 
 interpret ts@(gt, ft, lt, gc) (IfStmt cond cmdTrue cmdFalse) = do
     (gt', evaluated) <- eval ts cond 
@@ -655,44 +656,48 @@ interpret ts@(gt, ft, lt, gc) (WhileStmt cond cmd) = do
     case evaluated of
         (ValInt i) -> if i /= 0
             then do
-                ts' <- interpret (gt', ft, lt, gc) cmd
-                interpret ts' $ WhileStmt cond cmd
+                (ts',hasReturn) <- interpret (gt', ft, lt, gc) cmd
+                if hasReturn
+                    then return (ts',True)
+                    else interpret ts' $ WhileStmt cond cmd
             else do
-                return (gt', ft, lt, gc)
+                return ((gt', ft, lt, gc),False)
         _ -> error "Condition in while statement is not an integer value!"
 
 interpret ts@(gt, ft, lt, gc) (ReturnStmt e) = do
     (gt', evaluated) <- eval ts e
-    return $ addSym (gt', ft, lt, gc) "return" evaluated
+    return ((addSym (gt', ft, lt, gc) "return" evaluated),False)
 
-interpret ts (Seq []) = return ts
+interpret ts (Seq []) = return (ts,False)
 interpret ts (Seq (c:cs)) = do
-    ts' <- interpret ts c
+    (ts',hasReturn) <- interpret ts c
     case c of
-        (ReturnStmt _) -> return ts'
-        _ -> interpret ts' $ Seq cs
+        (ReturnStmt _) -> return (ts',True)
+        _ -> if hasReturn
+             then return (ts',True)
+             else interpret ts' $ Seq cs
 
 interpret ts@(gt,ft,lt,gc) (FuncCall name args) = do
     tmp@(gt',ft',lt',gc') <- getFun ts name args
-    return (gt',ft',lt, gc')
+    return ((gt',ft',lt, gc'),False)
 
-interpret ts (FuncDecl retType funcName params) = return ts
+interpret ts (FuncDecl retType funcName params) = return (ts,False)
 
 interpret ts (Func retType "main" params cmd) = 
     if (retType == Int && params == []) then do
             let ts' = setLCon ts
-            tsAft@(_,_,lt,_) <- interpret ts' cmd
+            (tsAft@(_,_,lt,_),_) <- interpret ts' cmd
             if (isVar lt "return") then do
                 case (getVar lt "return") of
-                    (ValInt i) -> return tsAft
+                    (ValInt i) -> return (tsAft,False)
                     _ -> error "Bad type of returning value from main!"
             else do
-                return tsAft
+                return (tsAft,False)
         else do
             error "Main has bad return type or has some parameters!"
 
 interpret ts (Func retType funcName params cmd) =   
-    return ts
+    return (ts,False)
 
 preInterpret :: SymTable -> Cmd -> IO SymTable
 preInterpret ts (VarDefStmt t varName) = return ts
@@ -796,7 +801,7 @@ main = do
         let fileName = args!!0
         input <- readFile fileName
         let ast = parseAep ("{" ++ input ++ "}") fileName
-
+        --putStrLn $ show ast
         if(sectionsTest ast True)
             then do
                 if(funcDeclDefTest ast [])
