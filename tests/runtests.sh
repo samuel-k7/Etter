@@ -1,62 +1,42 @@
 #!/bin/bash
 
-TEST_DIR="testplatz"
+TEST_PLACE="testplatz"
 SOURCES_DIR="sources"
+INT_SRC="../Lex.hs"
 
-GCC_NAME="gcc"
-HSINT_NAME="../Lex"
+HSINT_NAME="../int_c"
 
-mkdir $TEST_DIR
+mkdir $TEST_PLACE
 echo Vytvaram zlozku $TEST_DIR
+
+ghc $INT_SRC -o $HSINT_NAME
 
 # modifikacia zdrojaku pre preklad pomocou g++
 
 for SFILE in `cd $SOURCES_DIR; ls *.c`; do
 	echo -n Spracovavam $SFILE :::" "
-	# skopcit subor so zdrojakom do testovacieho adresara
-	cp $SOURCES_DIR/$SFILE $TEST_DIR/2run_hs.c
-	# skopcit vstupy a vystupy do testovacieho adresara
-	touch $TEST_DIR/c_in
+
+	touch $TEST_PLACE/c_in
 	if [ -f $SOURCES_DIR/$SFILE.in ]; then
-		cat $SOURCES_DIR/$SFILE.in > $TEST_DIR/c_in
+		cp $SOURCES_DIR/$SFILE.in $TEST_PLACE/c_in
 	fi
-
-	echo "#include <iostream>" > $TEST_DIR/2run_cpp.c
-	echo "#include <string>" >> $TEST_DIR/2run_cpp.c
-	echo "#include <stdio.h>" >> $TEST_DIR/2run_cpp.c
-	echo "using namespace std;" >> $TEST_DIR/2run_cpp.c
-	echo "" >> $TEST_DIR/2run_cpp.c
-
-	cat $TEST_DIR/2run_hs.c | sed 's/print(\([^)]*\))/std::cout << \1 << std::endl/g' | sed 's/scan(s_\([^)]*\))/getline(std::cin,s_\1)/g' | sed 's/scan(i_\([^)]*\))/scanf("%d",\&i_\1)/g' >> $TEST_DIR/2run_cpp.c
-	#cat $TEST_DIR/2run_cpp.c
-
-	# ak existuje referencny subor, pouzijem ho, inac ziskam referencny pomocou g++
+	touch $TEST_PLACE/x_ref
+	touch $TEST_PLACE/c_in
 	if [ -f $SOURCES_DIR/$SFILE.ref ]; then
-		cp $SOURCES_DIR/$SFILE.ref $TEST_DIR/c_out
-	else
-		# preklad zdrojaku pomocou g++
-		g++ $TEST_DIR/2run_cpp.c -o $TEST_DIR/2run_c
-		./$TEST_DIR/2run_c < $TEST_DIR/c_in > $TEST_DIR/c_out
-		RET_C=$?
+		cp $SOURCES_DIR/$SFILE.ref $TEST_PLACE/x_ref
 	fi
-
-
-	# interpretacia cez nas interpret
-	#echo ---
-	#cat $TEST_DIR/2run_hs.c
-	#echo ---
-	./$HSINT_NAME $TEST_DIR/2run_hs.c < $TEST_DIR/c_in > $TEST_DIR/hs_out
-	RET_HS=$?
+	
+	$HSINT_NAME $SOURCES_DIR/$SFILE < $TEST_PLACE/c_in > $TEST_PLACE/$SFILE.out 2>&1
 
 	# diffnem referencny s nasim
-	if [ $RET_C -ne $RET_HS ]; then
-		echo "Rozdielne navratove hodnoty -> G++: $RET_C, HS: $RET_HS !!!"
+	diff -q $TEST_PLACE/$SFILE.out $TEST_PLACE/x_ref
+	if [ $? -eq 0 ]; then
+		echo -e "\e[38;5;10mOK\e[0m"
 	else
-		diff -q $TEST_DIR/c_out $TEST_DIR/hs_out
-		if [ $? -eq 0 ]; then
-			echo "OK"
-		fi
+		echo -e "\e[38;5;196mFiles .out and .ref differ\e[0m"
+		echo "Press enter to continue ..."
+		read
 	fi
-	rm -rf $TEST_DIR/*
+	rm -rf $TEST_PLACE/*
 done
-rm -rf $TEST_DIR
+rm -rf $TEST_PLACE
