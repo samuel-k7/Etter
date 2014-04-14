@@ -559,15 +559,25 @@ eval ts@(gt, ft, lt, gc) (Fun name args) = do
 			(Double) -> return $ ValDouble 0.0
 			(String) -> return $ ValString ""
 
+hasVariableOriginalName :: String -> FuncTable -> Bool
+hasVariableOriginalName _ [] = True
+hasVariableOriginalName name (f:fs)
+    | name == funcName f = False
+    | otherwise = hasVariableOriginalName name fs
+
 -- Interpret
 
 interpret :: SymTable -> Cmd -> IO SymTable
 interpret ts (Empty) = return ts
 
-interpret ts (VarDefStmt t varName) = case t of
-        (Int) -> return $ addSym ts varName $ ValInt 0 
-        (Double) -> return $ addSym ts varName $ ValDouble 0.0
-        (String) -> return $ addSym ts varName $ ValString ""
+interpret ts@(_,ft,_,gc) (VarDefStmt t varName) =
+    if(gc == True && (hasVariableOriginalName varName ft) == False)
+        then error $ "Identifier \"" ++ varName ++ "\" has been declared already!"
+        else
+            case t of
+            (Int) -> return $ addSym ts varName $ ValInt 0 
+            (Double) -> return $ addSym ts varName $ ValDouble 0.0
+            (String) -> return $ addSym ts varName $ ValString ""
         
 interpret ts (AssignStmt v e) =  do 
     evaluated <- eval ts e 
