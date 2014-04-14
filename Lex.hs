@@ -456,109 +456,109 @@ switchCon (gt, ft, lt, gc) = (gt, ft, lt, not gc)
 eval :: SymTable -> Expr -> IO (VarTable, Value)
 eval ts@(gt,_,_,_) (Const i) = return (gt, i)
 
-eval ts (Add e1 e2) = do
-    (gt, evalLeft) <- eval ts e1
-    (gt, evalRight) <- eval ts e2
-    ev evalLeft evalRight gt
+eval ts@(gt, ft, lt, gc) (Add e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
 	where 
-		ev (ValInt i1) (ValInt i2) gt = return (gt, ValInt (i1 + i2))
-		ev (ValInt i1) (ValDouble i2) gt = return (gt, ValDouble (fromIntegral i1 + i2))
-		ev (ValDouble i1) (ValInt i2) gt = return (gt, ValDouble (i1 + fromIntegral i2))
-		ev (ValDouble i1) (ValDouble i2) gt = return (gt, ValDouble (i1 + i2))
-		ev (ValString i1) (ValString i2) gt = return (gt, ValString (i1 ++ i2))
+		ev (ValInt i1) (ValInt i2) gt' = return (gt', ValInt (i1 + i2))
+		ev (ValInt i1) (ValDouble i2) gt' = return (gt', ValDouble (fromIntegral i1 + i2))
+		ev (ValDouble i1) (ValInt i2) gt' = return (gt', ValDouble (i1 + fromIntegral i2))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', ValDouble (i1 + i2))
+		ev (ValString i1) (ValString i2) gt' = return (gt', ValString (i1 ++ i2))
 		ev _ _ _ = error "Type missmatch in operator +"
 
-eval ts (Sub e1 e2) = do
-    (gt, evalLeft) <- eval ts e1
-    (gt, evalRight) <- eval ts e2
-    ev evalLeft evalRight gt
+eval ts@(gt, ft, lt, gc) (Sub e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
 	where 
-		ev (ValInt i1) (ValInt i2) gt = return (gt, ValInt (i1 - i2))
-		ev (ValInt i1) (ValDouble i2) gt = return (gt, ValDouble (fromIntegral i1 - i2))
-		ev (ValDouble i1) (ValInt i2) gt = return (gt, ValDouble (i1 - fromIntegral i2))
-		ev (ValDouble i1) (ValDouble i2) gt = return (gt, ValDouble (i1 - i2))		
+		ev (ValInt i1) (ValInt i2) gt' = return (gt', ValInt (i1 - i2))
+		ev (ValInt i1) (ValDouble i2) gt' = return (gt', ValDouble (fromIntegral i1 - i2))
+		ev (ValDouble i1) (ValInt i2) gt' = return (gt', ValDouble (i1 - fromIntegral i2))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', ValDouble (i1 - i2))		
 		ev _ _ _ = error "Type missmatch in operator -"
 
-eval ts (Mult e1 e2) = do
-    (gt, evalLeft) <- eval ts e1
-    (gt, evalRight) <- eval ts e2
-    ev evalLeft evalRight gt
+eval ts@(gt, ft, lt, gc) (Mult e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
 	where 
-		ev (ValInt i1) (ValInt i2) gt = return (gt, ValInt (i1 * i2))
-		ev (ValInt i1) (ValDouble i2) gt = return (gt, ValDouble (fromIntegral i1 * i2))
-		ev (ValDouble i1) (ValInt i2) gt = return (gt, ValDouble (i1 * fromIntegral i2))
-		ev (ValDouble i1) (ValDouble i2) gt = return (gt, ValDouble (i1 * i2))
+		ev (ValInt i1) (ValInt i2) gt' = return (gt', ValInt (i1 * i2))
+		ev (ValInt i1) (ValDouble i2) gt' = return (gt', ValDouble (fromIntegral i1 * i2))
+		ev (ValDouble i1) (ValInt i2) gt' = return (gt', ValDouble (i1 * fromIntegral i2))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', ValDouble (i1 * i2))
 		ev _ _ _ = error "Type missmatch in operator *"
 
-eval ts (Div e1 e2) = do
-    (gt, evalLeft) <- eval ts e1
-    (gt, evalRight) <- eval ts e2
-    ev evalLeft evalRight gt
+eval ts@(gt, ft, lt, gc) (Div e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
 	where 
-		ev (ValInt i1) (ValInt i2) gt = return (gt, if (i2 == 0) then error "Division by zero!" else ValInt (i1 `quot` i2))							
-		ev (ValInt i1) (ValDouble i2) gt = return (gt, ValDouble (fromIntegral i1 / i2))
-		ev (ValDouble i1) (ValInt i2) gt = return  (gt, ValDouble (i1 / fromIntegral i2))
-		ev (ValDouble i1) (ValDouble i2) gt = return (gt, ValDouble (i1 / i2))
+		ev (ValInt i1) (ValInt i2) gt' = return (gt', if (i2 == 0) then error "Division by zero!" else ValInt (i1 `quot` i2))							
+		ev (ValInt i1) (ValDouble i2) gt' = return (gt', ValDouble (fromIntegral i1 / i2))
+		ev (ValDouble i1) (ValInt i2) gt' = return  (gt', ValDouble (i1 / fromIntegral i2))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', ValDouble (i1 / i2))
 		ev _ _ _ = error "Type missmatch in operator /"
 
-eval ts (Gt e1 e2) = do
-   	(gt, evalLeft) <- eval ts e1
-	(gt, evalRight) <- eval ts e2
-	ev evalLeft evalRight gt
+eval ts@(gt, ft, lt, gc) (Gt e1 e2) = do
+   	(gt', evalLeft) <- eval ts e1
+	(gt', evalRight) <- eval (gt', ft, lt, gc) e2
+	ev evalLeft evalRight gt'
 	where 
-		ev (ValInt i1) (ValInt i2) gt = return (gt, if (i1 > i2) then (ValInt 1) else (ValInt 0))
-		ev (ValDouble i1) (ValDouble i2) gt = return (gt, if (i1 > i2) then (ValInt 1) else (ValInt 0))
-		ev (ValString i1) (ValString i2) gt = return (gt, if (i1 > i2) then  (ValInt 1) else (ValInt 0))
+		ev (ValInt i1) (ValInt i2) gt' = return (gt', if (i1 > i2) then (ValInt 1) else (ValInt 0))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', if (i1 > i2) then (ValInt 1) else (ValInt 0))
+		ev (ValString i1) (ValString i2) gt' = return (gt', if (i1 > i2) then  (ValInt 1) else (ValInt 0))
 		ev _ _ _ = error "Type missmatch in operator >"
 
-eval ts (GtEq e1 e2) = do
-    (gt, evalLeft) <- eval ts e1
-    (gt, evalRight) <- eval ts e2
-    ev evalLeft evalRight gt
+eval ts@(gt, ft, lt, gc) (GtEq e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
 	where 
-		ev (ValInt i1) (ValInt i2) gt =  return (gt, if (i1 >= i2) then (ValInt 1) else (ValInt 0))
-		ev (ValDouble i1) (ValDouble i2) gt = return (gt, if (i1 >= i2) then (ValInt 1) else (ValInt 0))
-		ev (ValString i1) (ValString i2) gt = return (gt, if (i1 >= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValInt i1) (ValInt i2) gt' =  return (gt', if (i1 >= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', if (i1 >= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValString i1) (ValString i2) gt' = return (gt', if (i1 >= i2) then (ValInt 1) else (ValInt 0))
 		ev _ _ _ = error "Type missmatch in operator >="
 
-eval ts (Lt e1 e2) = do
-    (gt, evalLeft) <- eval ts e1
-    (gt, evalRight) <- eval ts e2
-    ev evalLeft evalRight gt
+eval ts@(gt, ft, lt, gc) (Lt e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
 	where 
-		ev (ValInt i1) (ValInt i2) gt =  return (gt, if (i1 < i2) then (ValInt 1) else (ValInt 0))
-		ev (ValDouble i1) (ValDouble i2) gt = return (gt, if (i1 < i2) then (ValInt 1) else (ValInt 0))
-		ev (ValString i1) (ValString i2) gt = return (gt, if (i1 < i2) then (ValInt 1) else (ValInt 0))
+		ev (ValInt i1) (ValInt i2) gt' =  return (gt', if (i1 < i2) then (ValInt 1) else (ValInt 0))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', if (i1 < i2) then (ValInt 1) else (ValInt 0))
+		ev (ValString i1) (ValString i2) gt' = return (gt', if (i1 < i2) then (ValInt 1) else (ValInt 0))
 		ev _ _ _ = error "Type missmatch in operator <"
 
-eval ts (LtEq e1 e2) = do
-    (gt, evalLeft) <- eval ts e1
-    (gt, evalRight) <- eval ts e2
-    ev evalLeft evalRight gt
+eval ts@(gt, ft, lt, gc) (LtEq e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
 	where 
-		ev (ValInt i1) (ValInt i2) gt =  return (gt, if (i1 <= i2) then (ValInt 1) else (ValInt 0))
-		ev (ValDouble i1) (ValDouble i2) gt = return (gt, if (i1 <= i2) then (ValInt 1) else (ValInt 0))
-		ev (ValString i1) (ValString i2) gt = return (gt, if (i1 <= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValInt i1) (ValInt i2) gt' =  return (gt', if (i1 <= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', if (i1 <= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValString i1) (ValString i2) gt' = return (gt', if (i1 <= i2) then (ValInt 1) else (ValInt 0))
 		ev _ _ _ = error "Type missmatch in operator <="
 
-eval ts (Eq e1 e2) = do
-    (gt, evalLeft) <- eval ts e1
-    (gt, evalRight) <- eval ts e2
-    ev evalLeft evalRight gt
+eval ts@(gt, ft, lt, gc) (Eq e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
 	where 
-		ev (ValInt i1) (ValInt i2) gt = return (gt, if (i1 == i2) then (ValInt 1) else (ValInt 0))
-		ev (ValDouble i1) (ValDouble i2) gt = return (gt, if (i1 == i2) then (ValInt 1) else (ValInt 0))
-		ev (ValString i1) (ValString i2) gt = return (gt, if (i1 == i2) then (ValInt 1) else (ValInt 0))
+		ev (ValInt i1) (ValInt i2) gt' = return (gt', if (i1 == i2) then (ValInt 1) else (ValInt 0))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', if (i1 == i2) then (ValInt 1) else (ValInt 0))
+		ev (ValString i1) (ValString i2) gt' = return (gt', if (i1 == i2) then (ValInt 1) else (ValInt 0))
 		ev _ _ _ = error "Type missmatch in operator =="
 
-eval ts (Neq e1 e2) = do
-    (gt, evalLeft) <- eval ts e1
-    (gt, evalRight) <- eval ts e2
-    ev evalLeft evalRight gt
+eval ts@(gt, ft, lt, gc) (Neq e1 e2) = do
+    (gt', evalLeft) <- eval ts e1
+    (gt', evalRight) <- eval (gt', ft, lt, gc) e2
+    ev evalLeft evalRight gt'
 	where 
-		ev (ValInt i1) (ValInt i2) gt =  return (gt, if (i1 /= i2) then (ValInt 1) else (ValInt 0))
-		ev (ValDouble i1) (ValDouble i2) gt = return (gt, if (i1 /= i2) then (ValInt 1) else (ValInt 0))
-		ev (ValString i1) (ValString i2) gt = return (gt, if (i1 /= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValInt i1) (ValInt i2) gt' =  return (gt', if (i1 /= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValDouble i1) (ValDouble i2) gt' = return (gt', if (i1 /= i2) then (ValInt 1) else (ValInt 0))
+		ev (ValString i1) (ValString i2) gt' = return (gt', if (i1 /= i2) then (ValInt 1) else (ValInt 0))
 		ev _ _ _ = error "Type missmatch in operator !="
 
 eval ts@(gt, _, _, _) (Var v) = return (gt, getSym ts v)
@@ -731,6 +731,7 @@ exprDeclDefTest e lt = case (e) of
     (LtEq e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
     (Eq e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
     (Neq e1 e2) -> ((exprDeclDefTest e1 lt) && (exprDeclDefTest e2 lt))
+
     _ -> True
 
 argsDeclDefTest :: [Arg] -> [String] -> Bool
