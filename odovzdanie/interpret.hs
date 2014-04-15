@@ -1,3 +1,12 @@
+-- VYSOKE UCENI TECHNICKE V BRNE
+-- Fakulta informacnich technologii
+
+-- Projekt FLP: Interpret imperativneho jazyka FLP-2014-C
+-- Autori: [VEDUCI] Bc. Antolik David, xantol01@stud.fit.vutbr.cz
+--         Bc. Kollar Jaroslav, xkolla03@stud.fit.vutbr.cz
+--         Bc. Kollat Samuel, xkolla04@stud.fit.vutbr.cz
+--         Bc. Kovacik Dusan, xkovac34@stud.fit.vutbr.cz
+
 module Main( main ) where
 
 import System.Environment( getArgs )
@@ -234,18 +243,18 @@ command_local_body =
 command_local_decl_def t i =
     do
         semi
-        return $ VarDefStmt t i
+        return $ VarDefStmt t i         -- typ id;
     <|> do
         reservedOp "="
         e <- expr
-        semi
+        semi                            -- typ id = expr;
         return $ VarDefStmtAssign t i e
 
 command_local_decl = 
     do
         semi
         return Empty
-    <|> do                              -- typ id ;
+    <|> do                            
         t <- getType
         i <- identifier
         command_local_decl_def t i
@@ -307,6 +316,7 @@ command =
 -- Tabulka premennych
 type VarTable = [(String, Value)]
 
+-- nastavenie premennej a jej hodnoty v tabulke premennych
 setVar :: VarTable -> String -> Value -> VarTable
 setVar [] var val = [(var, val)]
 setVar (s@(v,vT):ss) var val =
@@ -320,7 +330,7 @@ setVar (s@(v,vT):ss) var val =
         typeCorrect (ValString i1) (ValString i2) = (var, val):ss
         typeCorrect _ _ = error $ "Type missmatch in setting variable :" ++ var 
             
-
+-- ziskanie hodnoty premennej z tabulky premennych
 getVar :: VarTable -> String -> Value
 getVar [] v = error $ "Variable not found in symbol table: " ++ v
 getVar (s@(var, val):ss) v =
@@ -328,13 +338,14 @@ getVar (s@(var, val):ss) v =
         then val
         else getVar ss v
         
+-- overenie, ci je premenna v tabulke premennych
 isVar :: VarTable -> String -> Bool
 isVar [] n = False
 isVar ((name, val):vs) n
     | name == n = True
     | otherwise = isVar vs n
 
--- Tabulka funkcii
+-- Zaznam funkcie
 data FuncRecord =   FuncRecord
                     { funcName      :: String
                     , funcType      :: Type
@@ -342,16 +353,19 @@ data FuncRecord =   FuncRecord
                     , funcCommands  :: Cmd
                     } deriving Show
 
+-- Tabulka funkcii
 type FuncTable = [FuncRecord]
 
+-- Kontrola originality nazvov premennych v parametroch
 originalParametersTest :: [Param] -> [String] -> [Param]
 originalParametersTest [] _ = []
 originalParametersTest ((Param ptype pname):ps) ls = if isInList pname ls
                                                  then error "Multiple parameters with same name!"
                                                  else ((Param ptype pname):originalParametersTest ps (pname:ls))
     
+-- pridanie funkcie do tabulky funkcii, vratane nazvu, navratoveho typu, parametrov a zoznamu prikazov
 setFunc :: FuncTable -> String -> Type -> [Param] -> Cmd -> Bool -> FuncTable
-setFunc [] n t ps c b       -- if Bool (before main) is True, then save, else dont save
+setFunc [] n t ps c b       -- ak je Bool (pred main) True, potom uloz, inak neukladaj
     | b == True = [FuncRecord {funcName=n, funcType=t, funcParams=originalParametersTest ps [], funcCommands=c}]
     | otherwise = []
 setFunc ft@(f:fs) n t ps c b
@@ -377,12 +391,14 @@ setFunc ft@(f:fs) n t ps c b
             else
                 error $ "Multiple declarations of function with different types: " ++ funcName f
 
+-- ziskanie navratoveho typu funkcie
 getFuncType :: FuncTable -> String -> Type
 getFuncType [] fName = error $ "Cannot access type of function: " ++ fName
 getFuncType (f:fs) fName
     | funcName f == fName = funcType f
     | otherwise = getFuncType fs fName
 
+-- vyhodnotenie funkcie s danymi argumentami a uprava tabulky symbolov
 getFuncResult :: SymTable -> FuncTable -> String -> [Arg] -> IO SymTable
 getFuncResult _ [] fName _ = error $ "Undefined function call: " ++ fName
 getFuncResult st@(gt, ft, lt, gc) (f:fs) fName fArgs
@@ -396,8 +412,9 @@ getFuncResult st@(gt, ft, lt, gc) (f:fs) fName fArgs
                 return st
     | otherwise = getFuncResult st fs fName fArgs
 
+-- priradenie argumentov do parametrov funkcie, ktora vracia globalnu a lokalnu tabulku premennych
 assignArgsToParams :: SymTable -> VarTable -> String -> [Param] -> [Arg] -> IO (VarTable, VarTable)
-assignArgsToParams (gt, _, lt, _) vt _ [] [] = return (gt, vt)
+assignArgsToParams (gt, _, _, _) vt _ [] [] = return (gt, vt)
 assignArgsToParams _ _ n (p:ps) [] = error $ "Function called with less argumegt than required: " ++ n
 assignArgsToParams _ _ n [] (arg:args) = error $ "Function called with more argumegt than required: " ++ n
 assignArgsToParams st@(gt', ft', lt', gc') vt n ((Param pType pName):ps) ((Arg ex):args) = do
@@ -409,9 +426,10 @@ assignArgsToParams st@(gt', ft', lt', gc') vt n ((Param pType pName):ps) ((Arg e
         (String, ValString val) -> assignArgsToParams (gt, ft', lt', gc') (setVar vt pName $ ValString val) n ps args
         _   -> error $ "Passing parameter of incompatible type to a function: " ++ n
 
--- Tabulka symbol
+-- Tabulka symbolov
 type SymTable = (VarTable, FuncTable, VarTable, Bool)   -- Globalne premenne, Funkcie, Lokalne premenne, [Globalny kontext == True, Lokalny kontext == false]
 
+-- ziskanie hodnoty premennej z tabulky symbolov
 getSym :: SymTable -> String -> Value
 getSym  (gt, ft, lt, gc) name
     | isLocal name = getVar lt name
@@ -419,6 +437,7 @@ getSym  (gt, ft, lt, gc) name
     where
         isLocal n = isVar lt n
 
+-- pridanie nazvu a hodnoty premennej do tabulky symbolov
 addSym :: SymTable -> String -> Value -> SymTable
 addSym (gt, ft, lt, gc) vName val
     | gc == True && not (isVar gt vName) = (setImplicitSym gt, ft, lt, gc)
@@ -427,6 +446,7 @@ addSym (gt, ft, lt, gc) vName val
     where
         setImplicitSym t  = setVar t vName val
 
+-- nastavenie hodnoty premennej do tabulky symbolov
 setSym :: SymTable -> String -> Value -> SymTable
 setSym (gt, ft, lt, gc) vName val
     | gc == False && (isVar lt vName) = (gt, ft, newVt lt, gc)
@@ -435,27 +455,33 @@ setSym (gt, ft, lt, gc) vName val
     where
         newVt t = setVar t vName val
 
+-- vyhodnotenie funkcie s danymi argumentami a uprava tabulky symbolov
 getFun :: SymTable -> String -> [Arg] -> IO SymTable
 getFun st@(gt, ft, lt, gc) n args = do
     getFuncResult st ft n args
 
+-- zistenie, ci existuje funkcia
 isFun :: FuncTable -> String -> Bool
 isFun [] name = False
 isFun (f:ft) name 
     | name == funcName f = True
     | otherwise = isFun ft name
 
+-- nastavenie novej funkcie
 setFun :: SymTable -> String -> Type -> [Param] -> Cmd -> SymTable
 setFun (gt, ft, lt, gc) n t ps c = (gt, newFt, lt, gc)
     where
         newFt = setFunc ft n t ps c gc
         
+-- nastavenie globalneho kontextu
 setGCon :: SymTable -> SymTable
 setGCon (gt, ft, lt, gc) = (gt, ft, lt, True)
 
+-- nastavenie lokalneho kontextu
 setLCon :: SymTable -> SymTable
 setLCon (gt, ft, lt, gc) = (gt, ft, lt, False)
 
+-- prepnutie kontextu
 switchCon :: SymTable -> SymTable
 switchCon (gt, ft, lt, gc) = (gt, ft, lt, not gc)
 
@@ -585,6 +611,7 @@ eval ts@(gt, ft, lt, gc) (Fun name args) = do
 			(Double) -> return (gt', ValDouble 0.0)
 			(String) -> return (gt', ValString "")
 
+-- overenie, ci nazov premennej je jedinecny identifikator
 hasVariableOriginalName :: String -> FuncTable -> Bool
 hasVariableOriginalName _ [] = True
 hasVariableOriginalName name (f:fs)
@@ -592,7 +619,6 @@ hasVariableOriginalName name (f:fs)
     | otherwise = hasVariableOriginalName name fs
 
 -- Interpret
-
 interpret :: SymTable -> Cmd -> IO (SymTable,Bool)
 interpret ts (Empty) = return (ts,False)
 
@@ -699,10 +725,11 @@ interpret ts (Func retType "main" params cmd) =
 interpret ts (Func retType funcName params cmd) =   
     return (ts,False)
 
+-- priechod AST pre vyhladanie deklaracii a definicii funkcii
 preInterpret :: SymTable -> Cmd -> IO SymTable
 preInterpret ts (VarDefStmt t varName) = return ts
 preInterpret ts (VarDefStmtAssign t varName _) = return ts
-preInterpret ts@(_,_,_,gc) (Func retType "main" params cmd) = return $ setLCon $ setFun ts "main" retType params cmd
+preInterpret ts@(_,_,_,gc) (Func retType "main" params cmd) = return $ setFun ts "main" retType params cmd
 preInterpret ts@(_,_,_,gc) (FuncDecl retType "main" params) = return $ setFun ts "main" retType params Empty
 preInterpret ts@(_,_,_,gc) (Func retType funcName params cmd) = return $ setFun ts funcName retType params cmd
 preInterpret ts@(_,_,_,gc) (FuncDecl retType funcName params) = return $ setFun ts funcName retType params Empty
@@ -712,6 +739,7 @@ preInterpret ts (Seq (c:cs)) = do
     preInterpret ts' $ Seq cs
 preInterpret ts _ = error "Only declaration or definition can be in global context!"
 
+-- overenie, ci deklaracia globalnych premennych predchadza deklaracii a definicii funkcii
 sectionsTest :: Cmd -> Bool -> Bool
 sectionsTest (Seq []) _ = True
 sectionsTest (Seq (c:cs)) b = case(c) of
@@ -723,12 +751,14 @@ sectionsTest (Seq (c:cs)) b = case(c) of
                         else False
     _ -> sectionsTest (Seq cs) False
 
+-- overenie, ci sa dany retazec nachadza v poli retazcov
 isInList :: String -> [String] -> Bool
 isInList _ [] = False
 isInList name (l:ls)
     | name == l = True
     | otherwise = isInList name ls
 
+-- overenie, ci sa vo vyraze nenachaza nedeklarovana funkcia
 exprDeclDefTest :: Expr -> [String] -> Bool
 exprDeclDefTest e lt = case (e) of
     (Fun name args) -> ((isInList name lt) && (argsDeclDefTest args lt))
@@ -745,12 +775,14 @@ exprDeclDefTest e lt = case (e) of
 
     _ -> True
 
+-- overenie, ci sa v argumentoch funkcie nenachaza nedeklarovana funkcia
 argsDeclDefTest :: [Arg] -> [String] -> Bool
 argsDeclDefTest [] _ = True
 argsDeclDefTest ((Arg e):as) lt = if(exprDeclDefTest e lt)
                                     then argsDeclDefTest as lt
                                     else False
 
+-- overenie, ci sa v prikazoch nenachaza nedeklarovana funkcia
 funcDeclDefTest :: Cmd -> [String] -> Bool
 funcDeclDefTest (Seq []) _ = True
 funcDeclDefTest (Seq (c:cs)) lt = case (c) of
@@ -781,6 +813,7 @@ funcDeclDefTest (Seq (c:cs)) lt = case (c) of
                     else False
     _ -> funcDeclDefTest (Seq cs) lt
 
+-- vytvorenie AST
 aep = do
     whiteSpace
     ast <- command
@@ -788,11 +821,13 @@ aep = do
     return ast
     <?> "Aep parsing error"
 
+-- parsovanie vstupneho suboru do AST
 parseAep input file =
     case parse aep file input of
         Left e -> error $ show e
         Right ast -> ast 
     
+-- main
 main = do
     args <- getArgs
     if length args /= 1
@@ -816,4 +851,4 @@ main = do
             else do
                 error "Global variable declaration after function declaration or definition!"
 
---end Lex.hs
+--end interpret.hs
