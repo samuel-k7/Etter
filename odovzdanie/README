@@ -14,7 +14,7 @@
  ./Makefile		- Subor Makefile na preklad projektu
  ./README		- Subor README
  ./rozdeleni		- Subor s rozdelenim bodov
- ./src/demo1.c		- Priklad, testovaci zdrojovy kod
+ ./demo1.c		- Priklad, testovaci zdrojovy kod
 
 --- ROZSIRENIA ---
 
@@ -31,7 +31,7 @@ Prikazom "gmake" sa projekt prelozi. Vysledkom je spustitelny subor s nazvom xan
 
 --- PRIKLAD INTERPRETACIE TESTOVACIEHO ZDROJOVEHO KODU V PROSTREDI LINUX ---
 
-$ ./xantol01 src/demo1.c
+$ ./xantol01 demo1.c
 
 Prelozeny spustitelny subor interpretu ocakava ako parameter prikazoveho riadku prave 
 jeden parameter. Tym je cesta k suboru so zdrojovym kodom, ktory sa bude interpretovat.
