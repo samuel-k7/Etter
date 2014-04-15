@@ -1,0 +1,41 @@
+#
+# VYSOKE UCENI TECHNICKE V BRNE
+# Fakulta informacnich technologii
+#
+# Projekt FLP: Interpret imperativneho jazyka FLP-2014-C
+# Autori:   [VEDUCI] Bc. Antolik David, xantol01@stud.fit.vutbr.cz
+#                    Bc. Kollar Jaroslav, xkolla03@stud.fit.vutbr.cz
+#                    Bc. Kollat Samuel, xkolla04@stud.fit.vutbr.cz
+#                    Bc. Kovacik Dusan, xkovac34@stud.fit.vutbr.cz
+
+--- OBSAH ODOVZDAVANEHO ARCHIVU ---
+
+ ./interpret.hs		- Subor so zdrojovym kodom interpretu
+ ./Makefile		- Subor Makefile na preklad projektu
+ ./README		- Subor README
+ ./rozdeleni		- Subor s rozdelenim bodov
+ ./src/demo1.c		- Priklad, testovaci zdrojovy kod
+
+--- ROZSIRENIA ---
+
+ - podpora If-Else aj samostatnej vetvy If bez Else
+ - priradenie vramci deklaracie premennej
+ - volanie funkcie bez priradenia navratovej hodnoty do premennej
+ - lokalna premenna deklarovana v sekvencii deklaracii premennych prekryva globalnu premennu
+
+--- PREKLAD PROJEKTU V PROSTREDI LINUX ---
+
+$ gmake
+
+Prikazom "gmake" sa projekt prelozi. Vysledkom je spustitelny subor s nazvom xantol01.
+
+--- PRIKLAD INTERPRETACIE TESTOVACIEHO ZDROJOVEHO KODU V PROSTREDI LINUX ---
+
+$ ./xantol01 src/demo1.c
+
+Prelozeny spustitelny subor interpretu ocakava ako parameter prikazoveho riadku prave 
+jeden parameter. Tym je cesta k suboru so zdrojovym kodom, ktory sa bude interpretovat.
+
+#
+ 
+ 
