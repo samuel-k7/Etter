@@ -15,26 +15,10 @@
 :- dynamic stone/3.
 :- dynamic boardRate/4.
 
-gen_stone_after_first(X,Y,X1,Y1,X2,Y2) :- 
-	X >= 1, X < 10, Y >= 1, Y =< 10, X1 is X + 1, Y1 is Y, X2 is X + 1, Y2 is Y + 1,!;
-	X > 10, X =< 19, Y >= 1, Y =< 10, X1 is X - 1, Y1 is Y, X2 is X - 1, Y2 is Y + 1,!;
-	X >= 1, X < 10, Y > 10, Y =< 19, X1 is X + 1, Y1 is Y, X2 is X + 1, Y2 is Y - 1,!;
-	X > 10, X =< 19, Y > 10, Y =< 19, X1 is X - 1, Y1 is Y, X2 is X - 1, Y2 is Y - 1,!;
-	X == 10, Y =< 10,Y >= 1, X1 is X, Y1 is Y + 1, X2 is X - 1, Y2 is Y + 1,!;
-	X == 10, Y > 10,Y =< 19, X1 is X, Y1 is Y - 1, X2 is X + 1, Y2 is Y - 1.
-	
-gen_stones_after_start(X1,Y1,X2,Y2) :-
-	not(is_occupied_horizontal(5)), X1 is 9, X2 is 11, Y1 is 10, Y2 is 10,!;
-	not(is_occupied_vertical(5)), X1 is 10, X2 is 10, Y1 is 9, Y2 is 11,!;
-	not(is_occupied_diag_lr(5)), X1 is 9, X2 is 11, Y1 is 9, Y2 is 11,!;
-	not(is_occupied_diag_rl(15, 5)), X1 is 11, X2 is 9, Y1 is 9, Y2 is 11.
-		
-is_occupied_horizontal(X) :- stone(1, X, 10), true; X1 is X + 1, X1 =< 15, is_occupied_horizontal(X1).
-is_occupied_vertical(Y) :- stone(1, 10, Y), true; Y1 is Y + 1, Y1 =< 15, is_occupied_vertical(Y1).
-is_occupied_diag_lr(D) :- stone(1, D, D), true; D1 is D + 1, D1 =< 15, is_occupied_diag_lr(D1).
-is_occupied_diag_rl(X,Y) :- stone(1, X, Y), true; X1 is X - 1, Y1 is Y + 1, Y1 =< 15, is_occupied_diag_rl(X1, Y1).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% INPUT PARSING, OUTPUT PRINT %%%%%%%%%%%%%%
 
-
+%%%%% INPUT
 %Reads line from stdin, terminates on LF or EOF.
 read_line(L) :-
 	get_char(C),
@@ -100,6 +84,8 @@ get_coords(L, X1, Y1, X2, Y2) :-
 	number_codes(X2, Cx2),
 	number_codes(Y2, Cy2).
 
+%%%%% OUTPUT
+
 % zapis stones na obrazovku
 write_stones(X1, Y1, X2, Y2) :-
 	number_codes(X1, Sx1),
@@ -110,37 +96,79 @@ write_stones(X1, Y1, X2, Y2) :-
 	append(["STONES:", Sx1, ",", Sy1, ";", Sx2, ",", Sy2, ";"], L),
 	put_line(L).
 
-assert_stones(Player, X1, Y1, X2, Y2) :-
-	assert(stone(Player, X1, Y1)),
-	assert(stone(Player, X2, Y2)).
-	
-gen_pos(S, X, Y) :-
-	X is random(S) + 1,
-	Y is random(S) + 1.
-
-gen_random_free(X, Y) :-
-	board_size(S),
-	%TODO: check if board is full
-	repeat,
-	gen_pos(S, X, Y),
-	\+ stone(_, X, Y).
-
-move1(X, Y) :-
-	gen_random_free(X, Y),
-	assert(stone(0, X, Y)).
-	
-move(X1, Y1, X2, Y2) :-
-	move1(X1, Y1),
-	move1(X2, Y2).
-
 put_line(L) :-
 	writef('%s\n', [L]).
-	
+
+%%%%% -------- INPUT PARSING, OUTPUT PRINT ------------- %%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
+%%%%% NOT USED YET %%%%%%%%%%%%%%
+%	
+%gen_pos(S, X, Y) :-
+%	X is random(S) + 1,
+%	Y is random(S) + 1.
+%
+%gen_random_free(X, Y) :-
+%	board_size(S),
+%	%TODO: check if board is full
+%	repeat,
+%	gen_pos(S, X, Y),
+%	\+ stone(_, X, Y).
+%
+%move1(X, Y) :-
+%	gen_random_free(X, Y),
+%	assert(stone(0, X, Y)).
+%	
+%move(X1, Y1, X2, Y2) :-
+%	move1(X1, Y1),
+%	move1(X2, Y2).
+%
+
 %check_i_am_neighboor(Player, (SX:SY),(X, Y)) :- not(stone(Player, SX , SY)), SY =:= Y - 1,(SX =:= X - 1; SX =:= X + 1; SX == X);
 %						not(stone(Player, SX , SY)), SY =:= Y ,(SX =:= X - 1; SX =:= X + 1; SX == X);
 %						not(stone(Player, SX , SY)), SY =:= Y + 1,(SX =:= X - 1; SX =:= X + 1; SX == X).
 %
 
+%%%%% -------- NOT USED YET ------------- %%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% GENERATE FIRST MOVES %%%%%%%%%%%%%%
+
+gen_stone_after_first(X,Y,X1,Y1,X2,Y2) :- 
+	X >= 1, X < 10, Y >= 1, Y =< 10, X1 is X + 1, Y1 is Y, X2 is X + 1, Y2 is Y + 1,!;
+	X > 10, X =< 19, Y >= 1, Y =< 10, X1 is X - 1, Y1 is Y, X2 is X - 1, Y2 is Y + 1,!;
+	X >= 1, X < 10, Y > 10, Y =< 19, X1 is X + 1, Y1 is Y, X2 is X + 1, Y2 is Y - 1,!;
+	X > 10, X =< 19, Y > 10, Y =< 19, X1 is X - 1, Y1 is Y, X2 is X - 1, Y2 is Y - 1,!;
+	X == 10, Y =< 10,Y >= 1, X1 is X, Y1 is Y + 1, X2 is X - 1, Y2 is Y + 1,!;
+	X == 10, Y > 10,Y =< 19, X1 is X, Y1 is Y - 1, X2 is X + 1, Y2 is Y - 1.
+	
+gen_stones_after_start(X1,Y1,X2,Y2) :-
+	not(is_occupied_horizontal(5)), X1 is 9, X2 is 11, Y1 is 10, Y2 is 10,!;
+	not(is_occupied_vertical(5)), X1 is 10, X2 is 10, Y1 is 9, Y2 is 11,!;
+	not(is_occupied_diag_lr(5)), X1 is 9, X2 is 11, Y1 is 9, Y2 is 11,!;
+	not(is_occupied_diag_rl(15, 5)), X1 is 11, X2 is 9, Y1 is 9, Y2 is 11.
+		
+is_occupied_horizontal(X) :- stone(1, X, 10), true; X1 is X + 1, X1 =< 15, is_occupied_horizontal(X1).
+is_occupied_vertical(Y) :- stone(1, 10, Y), true; Y1 is Y + 1, Y1 =< 15, is_occupied_vertical(Y1).
+is_occupied_diag_lr(D) :- stone(1, D, D), true; D1 is D + 1, D1 =< 15, is_occupied_diag_lr(D1).
+is_occupied_diag_rl(X,Y) :- stone(1, X, Y), true; X1 is X - 1, Y1 is Y + 1, Y1 =< 15, is_occupied_diag_rl(X1, Y1).
+
+%%%%% -------- GENERATE FIRST MOVES ------------- %%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% INPUT CORRECTNES %%%%%%%%%%%%%%
+
+is_out(X, Y) :- X < 1,!; X > 19,!; Y < 1,!; Y > 19,!.
+is_same(X0,Y0,X1,Y1) :- X0 == X1,!, Y0 == Y1,!. 
+
+%%%%% -------- INPUT CORRECTNES ------------- %%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% OPERATION WITH STONES, ASSERT, FIND NEIGHBOORS ... %%%%%%%%%%%%%%
+
+assert_stones(Player, X1, Y1, X2, Y2) :-
+	assert(stone(Player, X1, Y1)),
+	assert(stone(Player, X2, Y2)).
 
 check_stone_on_list(_, [], L, L).
 check_stone_on_list(Player, [(X,Y)|T], Z , L) :- (not(stone(_,X, Y)), not(boardRate(Player, X, Y, _))) -> check_stone_on_list(Player, T, [X:Y|Z], L); (check_stone_on_list(Player, T, Z, L)),!. 
@@ -153,101 +181,13 @@ get_neighboors(Player, X,Y, L) :-
 find_all_stones(Player, L) :-
 	findall((SX:SY), stone(Player, SX, SY), L).
 	
-start :-
-	read_line(L),
-	(
-		atom_codes('FIRST:', AC), % Zaciname s FIRST, prvy suter davame my
-		append(AC, CS, L),
-		get_coords1(CS, X, Y),
-		assert(stone(1, X, Y)),		
-		gen_stone_after_first(X,Y,X1,Y1,X2,Y2),
-		write_stones(X1, Y1, X2, Y2),
-		assert_stones(0, X1, Y1, X2, Y2),
-		play	
-	;
-		L = "START;", % Zacina prvym on
-		assert(stone(0, 10, 10)),
-		put_line("FIRST:10,10;"),
-		after_start
-	;
-		halt
-	).
-	
-after_start :-
-	read_line(L),
-	(
-		atom_codes('QUIT;', AC),
-		L == AC, halt
-	;
-		atom_codes('STONES:', AC), % parsujeme STONES
-		append(AC, CS, L),
-		get_coords(CS, X1o, Y1o, X2o, Y2o),
-		assert(stone(1, X1o, Y1o)),
-		assert(stone(1, X2o, Y2o)),
-		gen_stones_after_start(X1, Y1, X2, Y2),		
-		write_stones(X1, Y1, X2, Y2),
-		assert_stones(0, X1, Y1, X2, Y2),
-		play
-	;
-		halt
-	).
-		
-play :-
-	read_line(L),
-	(
-		atom_codes('QUIT;', AC),
-		L == AC, halt
-	;
-		atom_codes('STONES:', AC), % parsujeme STONES
-		append(AC, CS, L),
-		get_coords(CS, X1o, Y1o, X2o, Y2o),
-		assert(stone(1, X1o, Y1o)),
-		assert(stone(1, X2o, Y2o)),
-		removeRates(0),
-		removeRates(1),
-		rate(0),
-		rate(1),
-		getBestRatePosition(0, X0R, Y0R, R0),
-		getBestRatePosition(1, X1R, Y1R, R1),
-		%write(X0R), write(" "), write(Y0R), write(" "), write(R0), write(" "), nl,
-		((R0 >= R1) -> (X1 is X0R, Y1 is Y0R); (X1 is X1R, Y1 is Y1R)),		
-		%write(X1), write(" "), write(Y1), write(" "), nl,		
-		assert(stone(0, X1, Y1)),
-		removeRates(0),
-		removeRates(1),
-		%listing(stone),
-		%listing(boardRate),
-		rate(0),		
-		rate(1),
-		getBestRatePosition(0, X0R2, Y0R2, R02),
-		getBestRatePosition(1, X1R2, Y1R2, R12),		
-		((R02 > R12) -> (X2 is X0R2, Y2 is Y0R2); (X2 is X1R2, Y2 is Y1R2)),
-		assert(stone(0, X2, Y2)),
-		write_stones(X1, Y1, X2, Y2),
-		
-		%write(X0R), write(" "), write(Y0R), write(" "), write(R0), write(" "), nl,
-		%write(X1R), write(" "), write(Y1R), write(" "), write(R1), write(" "), nl
-		
-		play
-	;
-		halt
-	).
-
-%entry point
-prolog :-
-	prompt(_, ''),
-	start.
-	
-calculate_rate(_, []).
-calculate_rate(Player, [X:Y|L]) :- getPotentialLineLengthAndDirection(Player, X, Y, _, RATE), saveRateAt(Player, X, Y, RATE), calculate_rate(Player, L),!.
-	
 call_neighboors(_, []).
 call_neighboors(Player, [X:Y|L]) :- get_neighboors(Player, X, Y, N), calculate_rate(Player, N), call_neighboors(Player, L),!.
 
-%calculate_rate(Player, X:Y) :- write(X), write(Y), nl.
+%%%%% -------- OPERATION WITH STONES, ASSERT, FIND NEIGHBOORS ------------- %%%%%%%%%%%%%%
 	
-rate(Player) :- find_all_stones(Player, L), call_neighboors(Player, L).
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% DIRECTION THINGS %%%%%%%%%%%%%%	
 
 getLineLengthInDirection(Player, X, Y, Direction, Length) :-
 	not(stone(Player, X, Y)) -> Length is 0 ;
@@ -312,6 +252,11 @@ getPotentialLineLengthAndDirection(Player, X, Y, Direction, Length) :-
 			LengthDiag2 > LengthVert, LengthDiag2 > LengthHor, LengthDiag2 > LengthDiag1, Length is LengthDiag2, Direction is 4
 		)
 	).
+	
+%%%%% -------- DIRECTION THINGS ------------- %%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% RATE THINGS %%%%%%%%%%%%%%
 
 saveRateAt(Player, X, Y, Rate) :-
 	boardRate(Player, X, Y, _) -> put_line("Error: Rate for the position has been saved already!"),! ;
@@ -329,11 +274,132 @@ selectBestRatePosition([_:_:R|XS],X2,Y2,R2):- selectBestRatePosition(XS,X2,Y2,R2
 getBestRatePosition(Player, X, Y, Rate) :-
 	findall(Xb:Yb:Rb,boardRate(Player,Xb,Yb,Rb),Rates), selectBestRatePosition(Rates, X, Y, Rate).
 
+calculate_rate(_, []).
+calculate_rate(Player, [X:Y|L]) :- getPotentialLineLengthAndDirection(Player, X, Y, _, RATE), saveRateAt(Player, X, Y, RATE), calculate_rate(Player, L),!.	
 
+%%%% RATE
+rate(Player) :- find_all_stones(Player, L), call_neighboors(Player, L).
 	
+%%%%% -------- RATE THINGS ------------- %%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% MINIMAX %%%%%%%%%%%%%%
+
+minimax :- 
+	removeRates(0),
+	removeRates(1),
+	rate(0),
+	rate(1),
+	getBestRatePosition(0, X0R, Y0R, R0),
+	getBestRatePosition(1, X1R, Y1R, R1),
+	%write(X0R), write(" "), write(Y0R), write(" "), write(R0), write(" "), nl,
+	((R0 >= R1) -> (X1 is X0R, Y1 is Y0R); (X1 is X1R, Y1 is Y1R)),		
+	%write(X1), write(" "), write(Y1), write(" "), nl,		
+	assert(stone(0, X1, Y1)),
+	removeRates(0),
+	removeRates(1),
+	%listing(stone),
+	%listing(boardRate),
+	rate(0),		
+	rate(1),
+	getBestRatePosition(0, X0R2, Y0R2, R02),
+	getBestRatePosition(1, X1R2, Y1R2, R12),		
+	((R02 > R12) -> (X2 is X0R2, Y2 is Y0R2); (X2 is X1R2, Y2 is Y1R2)),
+	assert(stone(0, X2, Y2)),
+	write_stones(X1, Y1, X2, Y2).	
 	
+%%%%% -------- MINIMAX ------------- %%%%%%%%%%%%%%
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% !!!!!!!!!!!MAIN!!!!!!!!!! %%%%%%%%%%%%%%
 
+start :-
+	read_line(L),
+	(
+		atom_codes('FIRST:', AC), % Zaciname s FIRST, prvy suter davame my
+		append(AC, CS, L),
+		get_coords1(CS, X, Y),
+		((is_out(X, Y)) -> put_line("Error, Stone is out of play array! Please re-enter your first move."), start
+			; (assert(stone(1, X, Y)),		
+			gen_stone_after_first(X,Y,X1,Y1,X2,Y2),
+			write_stones(X1, Y1, X2, Y2),
+			assert_stones(0, X1, Y1, X2, Y2),
+			play)
+		)
+	;
+		L = "START;", % Zacina prvym on
+		assert(stone(0, 10, 10)),
+		put_line("FIRST:10,10;"),
+		after_start
+	;
+		halt
+	).
+	
+after_start :-
+	read_line(L),
+	(
+		atom_codes('QUIT;', AC),
+		L == AC, halt
+	;
+		atom_codes('STONES:', AC), % parsujeme STONES
+		append(AC, CS, L),
+		get_coords(CS, X1o, Y1o, X2o, Y2o),
+		((is_same(X1o, Y1o, X2o, Y2o)) -> (put_line("Error, Try to save both stones at same place! Please re-enter your stone move!"), after_start)
+			;
+			((is_out(X1o, Y1o); stone(_, X1o, Y1o)) -> 
+				(put_line("Error, First stone already exists or is out of play array! Please re-enter your stone move!"), after_start)
+			;
+				((is_out(X2o, Y2o); stone(_, X2o, Y2o)) -> 
+					(put_line("Error, Second stone already exists or is out of play array! Please re-enter your stone move!"), after_start)
+				;
+					(assert(stone(1, X1o, Y1o)),
+					assert(stone(1, X2o, Y2o)),
+					gen_stones_after_start(X1, Y1, X2, Y2),		
+					write_stones(X1, Y1, X2, Y2),
+					assert_stones(0, X1, Y1, X2, Y2),
+					play)
+				)
+			)
+		)
+	;
+		halt
+	).
+	
+play :-
+	put_line("play!"),
+	read_line(L),
+	(
+		atom_codes('QUIT;', AC),
+		L == AC, halt
+	;
+		atom_codes('STONES:', AC), % parsujeme STONES
+		append(AC, CS, L),
+		get_coords(CS, X1o, Y1o, X2o, Y2o),
+		((is_same(X1o, Y1o, X2o, Y2o)) -> (put_line("Error, Try to save both stones at same place! Please re-enter your stone move!"), play)
+			;
+			((is_out(X1o, Y1o); stone(_, X1o, Y1o)) -> 
+				(put_line("Error, First stone already exists or is out of play array! Please re-enter your stone move!"), play)
+			;
+				((is_out(X2o, Y2o); stone(_, X2o, Y2o)) -> 
+					(put_line("Error, Second stone already exists or is out of play array! Please re-enter your stone move!"), play)
+				;
+					(assert(stone(1, X1o, Y1o)),
+					assert(stone(1, X2o, Y2o)),
+					minimax,
+					play)
+				)
+			)
+		)		
+	;
+		halt
+	).
+
+%entry point
+prolog :-
+	prompt(_, ''),
+	start.
+	
+%%%%% -------- !!!!!!!!END OF MAIN!!!!!!!!! ------------- %%%%%%%%%%%%%%
 
 
 
